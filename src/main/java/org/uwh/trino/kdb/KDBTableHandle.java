@@ -49,4 +49,8 @@ public class KDBTableHandle implements ConnectorTableHandle {
 
     @JsonProperty
     public OptionalLong getLimit() { return limit; }
+
+    public boolean isQuery() {
+        return !tableName.matches("[a-zA-Z.][a-zA-Z._0-9]*");
+    }
 }

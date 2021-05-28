@@ -3,7 +3,6 @@ package org.uwh.trino.kdb;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.BlockBuilder;
@@ -101,7 +100,7 @@ public class KDBClient {
             disjuncts.add(column.getName() + " in (" + String.join("; ", singleValues.stream().map(s -> formatKDBValue(column.getType(),s)).collect(Collectors.toList())) + ")");
         }
 
-        if (disjuncts.size() > 1) {
+        if (disjuncts.size() == 1) {
             return disjuncts.get(0);
         } else {
             return disjuncts.stream().map(dis -> "("+dis+")").collect(Collectors.joining(" | "));
@@ -132,9 +131,19 @@ public class KDBClient {
 
         // Flip of column names, column values (arrays)
         String query = "select " + String.join(", ", columns.stream().map(col -> col.getName()).collect(Collectors.toList()))
-                + " from " + table
-                + (filter != null ? (" where "+filter) : "");
-        LOGGER.info("KDB query: '"+query+"'");
+                + " from " + (handle.isQuery() ? ("("+table+")") : table);
+        if (filter != null) {
+            query += " where " + filter;
+            if (handle.getLimit().isPresent()) {
+                query = handle.getLimit().getAsLong() + "#" + query;
+            }
+        } else {
+            if (handle.getLimit().isPresent()) {
+                query += " where i<" + handle.getLimit().getAsLong();
+            }
+        }
+
+        LOGGER.info("KDB query: "+query);
         c.Flip res = (c.Flip) connection.k(query);
 
         PageBuilder builder = new PageBuilder(columns.stream().map(col -> col.getType()).collect(Collectors.toList()));

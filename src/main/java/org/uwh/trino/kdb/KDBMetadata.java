@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -135,6 +136,19 @@ public class KDBMetadata implements ConnectorMetadata {
     public ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle) {
         KDBColumnHandle handle = (KDBColumnHandle) columnHandle;
         return new ColumnMetadata(handle.name, handle.type);
+    }
+
+    @Override
+    public Optional<LimitApplicationResult<ConnectorTableHandle>> applyLimit(ConnectorSession session, ConnectorTableHandle handle, long limit) {
+        KDBTableHandle khandle = (KDBTableHandle) handle;
+        if (khandle.getLimit().isPresent() && khandle.getLimit().getAsLong() <= limit) {
+            return Optional.empty();
+        }
+
+        return Optional.of(new LimitApplicationResult<>(
+                new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit)),
+                false
+        ));
     }
 
     @Override
