@@ -15,6 +15,9 @@ public class KDBPageSource implements ConnectorPageSource {
     private final int pageSize;
     private int currentPage = 0;
 
+    private long completedBytes = 0;
+    private long readTimeNanos = 0;
+
     public KDBPageSource(KDBClient client, Config config, KDBTableHandle table, List<KDBMetadata.KDBColumnHandle> columns) {
         this.table = table;
         this.columns = columns;
@@ -25,12 +28,12 @@ public class KDBPageSource implements ConnectorPageSource {
 
     @Override
     public long getCompletedBytes() {
-        return 0;
+        return completedBytes;
     }
 
     @Override
     public long getReadTimeNanos() {
-        return 0;
+        return readTimeNanos;
     }
 
     @Override
@@ -41,7 +44,11 @@ public class KDBPageSource implements ConnectorPageSource {
     @Override
     public Page getNextPage() {
         try {
+            long nanos = System.nanoTime();
             Page result = client.getData(table, columns, currentPage, pageSize);
+            readTimeNanos += (System.nanoTime() - nanos);
+            completedBytes += result.getSizeInBytes();
+
             currentPage += 1;
             if (result == null || result.getPositionCount() < pageSize) {
                 finished = true;
