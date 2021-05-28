@@ -27,11 +27,11 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Used for additional Types not included in trino-spi -->
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
             <version>357</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
