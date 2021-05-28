@@ -64,36 +64,42 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testQuery() {
         query("select * from atable", 3);
+        assertLastQuery("select name, iq from atable");
         assertResultColumn(0, Set.of("Dent", "Beeblebrox", "Prefect"));
     }
 
     @Test
     public void testLargeCountQuery() {
         query("select count(*) from ctable", 1);
+        assertLastQuery("select i from ctable");
         assertEquals(res.getOnlyColumnAsSet(), Set.of(1_000_000L));
     }
 
     @Test
     public void testPassThroughQuery() {
         query("select * from kdb.default.\"select max iq from atable\"", 1);
+        assertLastQuery("select iq from (select max iq from atable)");
         assertEquals(res.getOnlyColumnAsSet(), Set.of(126L));
     }
 
     @Test
     public void testFilterPushdown() {
         query("select * from atable where iq > 50", 2);
+        assertLastQuery("select name, iq from atable where iq > 50");
         assertResultColumn(0, Set.of("Dent", "Prefect"));
     }
 
     @Test
     public void testFilterPushdownMultiple() {
         query("select * from atable where iq > 50 and iq < 100", 1);
+        assertLastQuery("select name, iq from atable where (iq > 50) & (iq < 100)");
         assertResultColumn(0, Set.of("Dent"));
     }
 
     @Test
     public void testFilterPushdownSymbol() {
         query("select * from atable where name = 'Dent'", 1);
+        assertLastQuery("select name, iq from atable where name = `Dent");
         assertResultColumn(0, Set.of("Dent"));
     }
 
