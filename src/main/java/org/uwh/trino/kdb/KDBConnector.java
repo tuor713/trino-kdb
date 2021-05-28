@@ -12,9 +12,11 @@ public class KDBConnector implements Connector {
     }
 
     private final KDBClient client;
+    private final Config config;
 
-    public KDBConnector(KDBClient client) {
+    public KDBConnector(KDBClient client, Config config) {
         this.client = client;
+        this.config = config;
     }
 
     @Override
@@ -39,6 +41,6 @@ public class KDBConnector implements Connector {
 
     @Override
     public ConnectorPageSourceProvider getPageSourceProvider() {
-        return new KDBPageSourceProvider(client);
+        return new KDBPageSourceProvider(client, config);
     }
 }

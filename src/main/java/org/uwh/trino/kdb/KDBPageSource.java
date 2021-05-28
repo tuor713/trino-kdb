@@ -11,14 +11,16 @@ public class KDBPageSource implements ConnectorPageSource {
     private List<KDBMetadata.KDBColumnHandle> columns;
     private boolean finished = false;
     private final KDBClient client;
+    private final Config config;
+    private final int pageSize;
     private int currentPage = 0;
 
-    private static final long PAGE_SIZE = 50_000;
-
-    public KDBPageSource(KDBClient client, KDBTableHandle table, List<KDBMetadata.KDBColumnHandle> columns) {
+    public KDBPageSource(KDBClient client, Config config, KDBTableHandle table, List<KDBMetadata.KDBColumnHandle> columns) {
         this.table = table;
         this.columns = columns;
         this.client = client;
+        this.config = config;
+        this.pageSize = config.getPageSize();
     }
 
     @Override
@@ -38,10 +40,13 @@ public class KDBPageSource implements ConnectorPageSource {
 
     @Override
     public Page getNextPage() {
-        finished = true;
-
         try {
-            return client.getData(table, columns);
+            Page result = client.getData(table, columns, currentPage, pageSize);
+            currentPage += 1;
+            if (result == null || result.getPositionCount() < pageSize) {
+                finished = true;
+            }
+            return result;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

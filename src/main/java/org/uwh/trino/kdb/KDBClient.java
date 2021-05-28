@@ -120,7 +120,7 @@ public class KDBClient {
         return String.join(", ", conditions);
     }
 
-    public Page getData(KDBTableHandle handle, List<KDBMetadata.KDBColumnHandle> columns) throws Exception {
+    public Page getData(KDBTableHandle handle, List<KDBMetadata.KDBColumnHandle> columns, int page, int pageSize) throws Exception {
         String table = handle.getTableName();
         String filter = constructFilters(handle.getConstraint());
 
@@ -141,6 +141,13 @@ public class KDBClient {
             if (handle.getLimit().isPresent()) {
                 query += " where i<" + handle.getLimit().getAsLong();
             }
+        }
+
+        // Pagination
+        if (page > 0) {
+            query = "select [" + (page*pageSize) + " " + pageSize + "] from " + query;
+        } else {
+            query = "select [" + pageSize + "] from " + query;
         }
 
         LOGGER.info("KDB query: "+query);

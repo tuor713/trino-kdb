@@ -20,14 +20,11 @@ public class KDBConnectorFactory implements ConnectorFactory {
 
     @Override
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context) {
-        String host = config.get("kdb.host");
-        int port = Integer.parseInt(config.get("kdb.port"));
-        String user = config.get("kdb.user");
-        String password = config.get("kdb.password");
+        Config cfg = new Config(config);
 
         try {
-            KDBClient client = new KDBClient(host, port, user, password);
-            return new KDBConnector(client);
+            KDBClient client = new KDBClient(cfg.getHost(), cfg.getPort(), cfg.getUser(), cfg.getPassword());
+            return new KDBConnector(client, cfg);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

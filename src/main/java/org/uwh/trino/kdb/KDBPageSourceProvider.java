@@ -6,9 +6,11 @@ import java.util.List;
 
 public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
     private final KDBClient client;
+    private final Config config;
 
-    public KDBPageSourceProvider(KDBClient client) {
+    public KDBPageSourceProvider(KDBClient client, Config config) {
         this.client = client;
+        this.config = config;
     }
 
     @Override
@@ -16,6 +18,6 @@ public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
         KDBTableHandle tHandle = (KDBTableHandle) table;
         List<KDBMetadata.KDBColumnHandle> tColumns = (List) columns;
 
-        return new KDBPageSource(client, tHandle, tColumns);
+        return new KDBPageSource(client, config, tHandle, tColumns);
     }
 }

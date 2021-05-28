@@ -9,6 +9,8 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -23,7 +25,6 @@ import static io.trino.testing.TestingSession.testSessionBuilder;
 @Test
 public class TestKDBPlugin extends AbstractTestQueryFramework {
 
-
     @BeforeClass
     public static void setupKDB() throws Exception {
         kx.c conn = new kx.c("localhost", 8000, "user:password");
@@ -34,6 +35,11 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("ctable:([] const:1000000#1; linear:til 1000000)");
         conn.k("keyed_table:([name:`Dent`Beeblebrox`Prefect] iq:98 42 126)");
         conn.k("tfunc:{[] atable}");
+        Path p = Files.createTempDirectory("splay");
+        p = p.resolve("splay_table");
+        String dirPath = p.toAbsolutePath().toString();
+        conn.k("`:" + dirPath + " set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
+        conn.k("\\l "+dirPath);
 
         Logger.getLogger(KDBClient.class.getName()).addHandler(new Handler() {
             @Override
@@ -57,49 +63,63 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         ConnectorSession session = TestingConnectorSession.builder().build();
         KDBMetadata metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"));
         List<SchemaTableName> tables = metadata.listTables(session, Optional.empty());
-        assertEquals(4, tables.size());
-        assertEquals(Set.of("atable","btable","ctable", "keyed_table"), tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()));
+
+        Set<String> expected = Set.of("atable","btable","ctable", "keyed_table", "splay_table");
+
+        assertEquals(tables.size(), expected.size());
+        assertEquals(tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()), expected);
     }
 
     @Test
     public void testQuery() {
         query("select * from atable", 3);
-        assertLastQuery("select name, iq from atable");
+        assertLastQuery("select [50000] from select name, iq from atable");
         assertResultColumn(0, Set.of("Dent", "Beeblebrox", "Prefect"));
     }
 
     @Test
     public void testLargeCountQuery() {
         query("select count(*) from ctable", 1);
-        assertLastQuery("select i from ctable");
+        assertLastQuery("select [1000000 50000] from select i from ctable");
         assertEquals(res.getOnlyColumnAsSet(), Set.of(1_000_000L));
+
+        query("select sum(linear) from ctable", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of(499999500000L));
     }
 
     @Test
     public void testPassThroughQuery() {
         query("select * from kdb.default.\"select max iq from atable\"", 1);
-        assertLastQuery("select iq from (select max iq from atable)");
+        assertLastQuery("select [50000] from select iq from (select max iq from atable)");
         assertEquals(res.getOnlyColumnAsSet(), Set.of(126L));
     }
 
     @Test
+    public void testSplayTableQuery() {
+        query("select * from splay_table", 3);
+        assertLastQuery("select [50000] from select v1, v2 from splay_table");
+        assertResultColumn(0, Set.of(10L, 20L, 30L));
+    }
+
+
+    @Test
     public void testFilterPushdown() {
         query("select * from atable where iq > 50", 2);
-        assertLastQuery("select name, iq from atable where iq > 50");
+        assertLastQuery("select [50000] from select name, iq from atable where iq > 50");
         assertResultColumn(0, Set.of("Dent", "Prefect"));
     }
 
     @Test
     public void testFilterPushdownMultiple() {
         query("select * from atable where iq > 50 and iq < 100", 1);
-        assertLastQuery("select name, iq from atable where (iq > 50) & (iq < 100)");
+        assertLastQuery("select [50000] from select name, iq from atable where (iq > 50) & (iq < 100)");
         assertResultColumn(0, Set.of("Dent"));
     }
 
     @Test
     public void testFilterPushdownSymbol() {
         query("select * from atable where name = 'Dent'", 1);
-        assertLastQuery("select name, iq from atable where name = `Dent");
+        assertLastQuery("select [50000] from select name, iq from atable where name = `Dent");
         assertResultColumn(0, Set.of("Dent"));
     }
 
@@ -130,14 +150,14 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testLimit() {
         query("select * from atable limit 2", 2);
-        assertLastQuery("select name, iq from atable where i<2");
+        assertLastQuery("select [50000] from select name, iq from atable where i<2");
 
         query("select * from ctable where const = 1 limit 10", 10);
         // Optimizer does not appear to attempt to push limit into filter, instead filter is pushed and limit post-applied
-        assertLastQuery("select const, linear from ctable where const = 1");
+        assertLastQuery("select [50000] from select const, linear from ctable where const = 1");
 
         query("select * from \"select from atable\" limit 2", 2);
-        assertLastQuery("select name, iq from (select from atable) where i<2");
+        assertLastQuery("select [50000] from select name, iq from (select from atable) where i<2");
     }
 
     private static String lastQuery = null;

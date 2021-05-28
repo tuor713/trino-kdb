@@ -8,8 +8,6 @@ A sample catalog definition should look like:
 connector.name=kdb
 kdb.host=localhost
 kdb.port=8000
-kdb.user=<user>
-kdb.password=<password>
 ```
 
 ### Features
@@ -19,6 +17,18 @@ The plugin currently supports:
 - Table and pass through queries
 - Basic schema introspection
 - Limited filter and limit pass through
+
+### Configuration Options
+
+Settings that can be used in catalog file:
+
+| Config | Description |
+| ----- | ----------- |
+| kdb.host | Hostname of KDB server | 
+| kdb.port | Port of KDB server | 
+| kdb.user | _(Optional)_ User for authenticating with KDB server | 
+| kdb.password | _(Optional)_ Password for authenticating with KDB server | 
+| page.size | _(Optional)_ Size of pages (in number of rows) retrieved from KDB (default: 50,000)
 
 ### Building
 
