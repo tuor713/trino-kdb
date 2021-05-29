@@ -17,10 +17,7 @@ import kx.c;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class KDBClient {
@@ -127,12 +124,30 @@ public class KDBClient {
             return null;
         }
 
-        List<String> conditions = new ArrayList<>();
+        TreeMap<KDBMetadata.KDBColumnHandle, String> conditions = new TreeMap<KDBMetadata.KDBColumnHandle, String>(
+                Comparator.comparingInt(col -> {
+                    if (col.getKdbType() == KDBType.Date) {
+                        if (col.getName().equals("date")) {
+                            return -4;
+                        } else {
+                            return -3;
+                        }
+                    } else if (col.getKdbType() == KDBType.Symbol) {
+                        return -2;
+                    } else if (col.getKdbType() == KDBType.String) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                })
+        );
+
         for (Map.Entry<ColumnHandle, Domain> e : domain.getDomains().get().entrySet()) {
-            conditions.add(constructFilter((KDBMetadata.KDBColumnHandle) e.getKey(), e.getValue()));
+            KDBMetadata.KDBColumnHandle col = (KDBMetadata.KDBColumnHandle) e.getKey();
+            conditions.put(col, constructFilter(col, e.getValue()));
         }
 
-        return String.join(", ", conditions);
+        return String.join(", ", conditions.values());
     }
 
     public Page getData(KDBTableHandle handle, List<KDBMetadata.KDBColumnHandle> columns, int page, int pageSize) throws Exception {

@@ -32,7 +32,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         // create test tables
         conn.k("atable:([] name:`Dent`Beeblebrox`Prefect; iq:98 42 126)");
         conn.k("btable:([] booleans:001b; guids: 3?0Ng; bytes: `byte$1 2 3; shorts: `short$1 2 3; ints: `int$1 2 3; longs: `long$1 2 3; reals: `real$1 2 3; floats: `float$1 2 3; chars:\"abc\"; strings:(\"hello\"; \"world\"; \"trino\"); symbols:`a`b`c; timestamps: `timestamp$1 2 3; months: `month$1 2 3; dates: `date$1 2 3; datetimes: `datetime$1 2 3; timespans: `timespan$1 2 3; minutes: `minute$1 2 3; seconds: `second$1 2 3; times: `time$1 2 3 )");
-        conn.k("ctable:([] const:1000000#1; linear:til 1000000)");
+        conn.k("ctable:([] const:1000000#1; linear:til 1000000; sym:1000000#`hello`world`trino; s:1000000#string `hello`world`trino)");
         conn.k("keyed_table:([name:`Dent`Beeblebrox`Prefect] iq:98 42 126)");
         conn.k("tfunc:{[] atable}");
         Path p = Files.createTempDirectory("splay");
@@ -144,6 +144,12 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     }
 
     @Test
+    public void testFilterOrdering() {
+        query("select count(*) from ctable where s = 'trino' and sym = 'trino'", 1);
+        assertLastQuery("select [300000 50000] from select sym, s from ctable where sym = `trino, s like \"trino\"");
+    }
+
+    @Test
     public void testKeyedTableQuery() {
         query("select * from keyed_table", 3);
 
@@ -161,7 +167,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select * from atable limit 2", 2);
         assertLastQuery("select [50000] from select name, iq from atable where i<2");
 
-        query("select * from ctable where const = 1 limit 10", 10);
+        query("select const, linear from ctable where const = 1 limit 10", 10);
         // Optimizer does not appear to attempt to push limit into filter, instead filter is pushed and limit post-applied
         assertLastQuery("select [50000] from select const, linear from ctable where const = 1");
 
