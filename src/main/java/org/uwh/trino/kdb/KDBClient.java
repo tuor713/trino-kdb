@@ -15,6 +15,8 @@ import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
 import kx.c;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -63,8 +65,11 @@ public class KDBClient {
         return ImmutableList.copyOf(result);
     }
 
-    private String formatKDBValue(Type type, Object value) {
-        if (value instanceof Slice) {
+    private String formatKDBValue(KDBType type, Object value) {
+        if (type == KDBType.Date) {
+            LocalDate date = LocalDate.ofEpochDay((long) value);
+            return date.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+        } else if (value instanceof Slice) {
             Slice s = (Slice) value;
             return "`" + s.toStringUtf8();
         } else {
@@ -80,24 +85,34 @@ public class KDBClient {
                 singleValues.add(range.getSingleValue());
             } else {
                 List<String> conds = new ArrayList<>();
-                if (!range.isLowUnbounded()) {
-                    conds.add(column.getName() + (range.isLowInclusive() ? " >= " : " > ") + range.getLowValue().get());
-                }
-                if (!range.isHighUnbounded()) {
-                    conds.add(column.getName() + (range.isHighInclusive() ? " <= " : " < ") + range.getHighValue().get());
-                }
-                if (conds.size() > 1) {
-                    disjuncts.add("(" + conds.get(0) + ") & (" + conds.get(1) + ")");
+                if (!range.isLowUnbounded() && !range.isHighUnbounded() && column.getKdbType() == KDBType.Date) {
+                    long lower = range.isLowInclusive() ? (long) range.getLowValue().get() : (long) range.getLowValue().get()+1;
+                    long upper = range.isLowInclusive() ? (long) range.getHighValue().get() : (long) range.getHighValue().get()-1;
+                    disjuncts.add(column.getName() + " within " + formatKDBValue(KDBType.Date, lower) + " " + formatKDBValue(KDBType.Date, upper));
                 } else {
-                    disjuncts.add(conds.get(0));
+                    if (!range.isLowUnbounded()) {
+                        conds.add(column.getName() + (range.isLowInclusive() ? " >= " : " > ") + formatKDBValue(column.getKdbType(), range.getLowValue().get()));
+                    }
+                    if (!range.isHighUnbounded()) {
+                        conds.add(column.getName() + (range.isHighInclusive() ? " <= " : " < ") + formatKDBValue(column.getKdbType(), range.getHighValue().get()));
+                    }
+                    if (conds.size() > 1) {
+                        disjuncts.add("(" + conds.get(0) + ") & (" + conds.get(1) + ")");
+                    } else {
+                        disjuncts.add(conds.get(0));
+                    }
                 }
             }
         }
 
         if (singleValues.size() == 1) {
-            disjuncts.add(column.getName() + " = " + formatKDBValue(column.getType(),singleValues.get(0)));
+            if (column.getKdbType() == KDBType.String) {
+                disjuncts.add(column.getName() + " like \"" + ((Slice) singleValues.get(0)).toStringUtf8() + "\"");
+            } else {
+                disjuncts.add(column.getName() + " = " + formatKDBValue(column.getKdbType(), singleValues.get(0)));
+            }
         } else if (singleValues.size() > 1) {
-            disjuncts.add(column.getName() + " in (" + String.join("; ", singleValues.stream().map(s -> formatKDBValue(column.getType(),s)).collect(Collectors.toList())) + ")");
+            disjuncts.add(column.getName() + " in (" + String.join("; ", singleValues.stream().map(s -> formatKDBValue(column.getKdbType(),s)).collect(Collectors.toList())) + ")");
         }
 
         if (disjuncts.size() == 1) {

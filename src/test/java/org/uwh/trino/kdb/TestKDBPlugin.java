@@ -132,6 +132,15 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testTypeSupport() {
         query("select * from btable", 3);
+
+        query("select strings, symbols from btable where strings = 'hello'", 1);
+        assertLastQuery("select [50000] from select strings, symbols from btable where strings like \"hello\"");
+
+        query("select dates, symbols from btable where dates = DATE '2000-01-02'", 1);
+        assertLastQuery("select [50000] from select symbols, dates from btable where dates = 2000.01.02");
+
+        query("select dates, symbols from btable where dates BETWEEN DATE '2000-01-01' AND DATE '2000-01-03'", 2);
+        assertLastQuery("select [50000] from select symbols, dates from btable where dates within 2000.01.01 2000.01.03");
     }
 
     @Test
