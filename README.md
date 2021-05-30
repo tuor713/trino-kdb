@@ -28,7 +28,8 @@ Settings that can be used in catalog file:
 | kdb.port | Port of KDB server | 
 | kdb.user | _(Optional)_ User for authenticating with KDB server | 
 | kdb.password | _(Optional)_ Password for authenticating with KDB server | 
-| page.size | _(Optional)_ Size of pages (in number of rows) retrieved from KDB (default: 50,000)
+| page.size | _(Optional)_ Size of pages (in number of rows) retrieved from KDB (default: 50,000) |
+| use.stats | _(Optional)_ Calculate stats for KDB tables, on the fly and cached in memory (default: true) |
 
 ### Building
 

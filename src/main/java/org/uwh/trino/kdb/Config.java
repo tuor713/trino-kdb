@@ -9,6 +9,8 @@ public class Config {
     public static final String KDB_PASSWORD_KEY = "kdb.password";
     public static final String KDB_PAGE_SIZE = "page.size";
     public static final String DEFAULT_PAGE_SIZE = "50000";
+    public static final String KDB_USE_STATS_KEY = "use.stats";
+    public static final String DEFAULT_USE_STATS = "true";
 
     private final Map<String,String> config;
 
@@ -34,5 +36,9 @@ public class Config {
 
     public int getPageSize() {
         return Integer.parseInt(config.getOrDefault(KDB_PAGE_SIZE, DEFAULT_PAGE_SIZE));
+    }
+
+    public boolean useStats() {
+        return Boolean.parseBoolean(config.getOrDefault(KDB_USE_STATS_KEY, DEFAULT_USE_STATS));
     }
 }

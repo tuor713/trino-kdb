@@ -11,6 +11,9 @@ import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.ColumnStatistics;
+import io.trino.spi.statistics.Estimate;
+import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
 import kx.c;
@@ -192,6 +195,36 @@ public class KDBClient {
         }
 
         return builder.build();
+    }
+
+    public TableStatistics getTableStatistics(KDBTableHandle table) throws Exception {
+        LOGGER.info("Collecting statistics for table " + table.getSchemaName() + "." + table.getTableName());
+        long rows = (long) connection.k("count " + table.getTableName());
+
+        List<ColumnMetadata> columnMetadata = getTableMeta(table.getTableName());
+        String colQuery = columnMetadata.stream()
+                .map(col -> "(select name:`" + col.getName() + ", dcount, ncount, size " +
+                        "from select dcount:count distinct " + col.getName() + ", " +
+                        ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName() + ", " : "ncount: sum `long$null " + col.getName() + ", ") +
+                        "size: -22!" + col.getName() + " " +
+                        "from " + table.getTableName() + ")")
+                .collect(Collectors.joining(" uj "));
+
+        c.Flip colMeta = (c.Flip) connection.k(colQuery);
+        String[] columns = (String[]) colMeta.y[0];
+        long[] distinctCounts = (long[]) colMeta.y[1];
+        long[] nullCounts = (long[]) colMeta.y[2];
+        long[] sizes = (long[]) colMeta.y[3];
+
+        Map<ColumnHandle, ColumnStatistics> stats = new HashMap<>();
+        for (int i=0; i<columns.length; i++) {
+            ColumnMetadata meta = columnMetadata.get(i);
+            stats.put(
+                    new KDBMetadata.KDBColumnHandle(meta.getName(), meta.getType(), (KDBType) meta.getProperties().get("kdb.type")),
+                    new ColumnStatistics(Estimate.of((double) nullCounts[i] / rows), Estimate.of(distinctCounts[i]), Estimate.of(sizes[i]), Optional.empty()));
+        }
+
+        return new TableStatistics(Estimate.of(rows), stats);
     }
 
     private int getArrayLength(Type t, Object array) {

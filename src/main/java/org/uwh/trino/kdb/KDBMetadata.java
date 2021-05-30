@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.*;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.Type;
 
 import javax.annotation.Nullable;
@@ -20,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 public class KDBMetadata implements ConnectorMetadata {
     private static final String SCHEMA_NAME = "default";
     private final KDBClient client;
+    private final boolean useStats;
+    private final StatsManager stats;
 
     public static class KDBColumnHandle implements ColumnHandle {
         final String name;
@@ -47,8 +50,10 @@ public class KDBMetadata implements ConnectorMetadata {
         public KDBType getKdbType() { return kdbType; }
     }
 
-    public KDBMetadata(KDBClient client) {
+    public KDBMetadata(KDBClient client, boolean useStats) {
         this.client = client;
+        this.useStats = useStats;
+        this.stats = new StatsManager(client);
     }
 
     @Override
@@ -163,5 +168,18 @@ public class KDBMetadata implements ConnectorMetadata {
         KDBTableHandle newHandle = new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), next, khandle.getLimit());
 
         return Optional.of(new ConstraintApplicationResult<>(newHandle, constraint.getSummary()));
+    }
+
+    @Override
+    public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint) {
+        if (!useStats) {
+            return TableStatistics.empty();
+        }
+
+        try {
+            return stats.getTableStats((KDBTableHandle) handle);
+        } catch (Exception e) {
+            return TableStatistics.empty();
+        }
     }
 }

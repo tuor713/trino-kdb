@@ -26,7 +26,7 @@ public class KDBConnector implements Connector {
 
     @Override
     public ConnectorMetadata getMetadata(ConnectorTransactionHandle transactionHandle) {
-        return new KDBMetadata(client);
+        return new KDBMetadata(client, config.useStats());
     }
 
     @Override

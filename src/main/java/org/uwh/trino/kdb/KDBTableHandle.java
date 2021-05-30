@@ -7,7 +7,6 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
 
-import javax.swing.text.html.Option;
 import java.util.OptionalLong;
 
 public class KDBTableHandle implements ConnectorTableHandle {

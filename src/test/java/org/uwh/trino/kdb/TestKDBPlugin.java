@@ -3,7 +3,9 @@ package org.uwh.trino.kdb;
 import io.trino.Session;
 import io.trino.metadata.SessionPropertyManager;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.statistics.TableStatistics;
 import io.trino.testing.*;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testng.annotations.BeforeClass;
@@ -61,13 +63,25 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testMetadata() throws Exception {
         ConnectorSession session = TestingConnectorSession.builder().build();
-        KDBMetadata metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"));
+        KDBMetadata metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), false);
         List<SchemaTableName> tables = metadata.listTables(session, Optional.empty());
 
         Set<String> expected = Set.of("atable","btable","ctable", "keyed_table", "splay_table");
 
         assertEquals(tables.size(), expected.size());
         assertEquals(tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()), expected);
+    }
+
+    @Test
+    public void testTableStats() throws Exception {
+        ConnectorSession session = TestingConnectorSession.builder().build();
+        KDBMetadata metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), false);
+        TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        assertEquals(stats, TableStatistics.empty());
+
+        metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), true);
+        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
     }
 
     @Test
