@@ -166,6 +166,9 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select strings, symbols from btable where strings = 'hello'", 1);
         assertLastQuery("select [50000] from select strings, symbols from btable where strings like \"hello\"");
 
+        query("select strings, symbols from btable where strings = 'h'", 0);
+        assertLastQuery("select [50000] from select strings, symbols from btable where strings like (enlist \"h\")");
+
         query("select dates, symbols from btable where dates = DATE '2000-01-02'", 1);
         assertLastQuery("select [50000] from select symbols, dates from btable where dates = 2000.01.02");
 

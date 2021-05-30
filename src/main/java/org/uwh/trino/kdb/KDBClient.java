@@ -65,6 +65,8 @@ public class KDBClient {
     }
 
     public List<ColumnMetadata> getTableMeta(String name) throws Exception {
+        boolean isPartitioned = !KDBTableHandle.isQuery(name) && (boolean) exec("`boolean$.Q.qp["+name+"]");
+
         c.Dict res = (c.Dict) exec("meta "+name);
         c.Flip columns = (c.Flip) res.x;
         c.Flip colMeta = (c.Flip) res.y;
@@ -75,13 +77,11 @@ public class KDBClient {
         List<ColumnMetadata> result = new ArrayList<>();
         for (int i=0; i<colNames.length; i++) {
             KDBType kdbType = KDBType.fromTypeCode(types[i]);
-            Map<String,Object> props;
-            if (attributes[i] != null && !attributes[i].isEmpty()) {
-                props = Map.of("kdb.type", kdbType,
-                        "kdb.attribute", Optional.of(KDBAttribute.fromCode(attributes[i].charAt(0))));
-            } else {
-                props = Map.of("kdb.type", kdbType, "kdb.attribute", Optional.empty());
-            }
+            Map<String,Object> props = Map.of(
+                    "kdb.type", kdbType,
+                    "kdb.attribute", attributes[i] != null && !attributes[i].isEmpty() ? Optional.of(KDBAttribute.fromCode(attributes[i].charAt(0))) : Optional.empty(),
+                    "kdb.isPartitionColumn", isPartitioned && i == 0
+            );
 
             ColumnMetadata col = new ColumnMetadata(
                     colNames[i],
@@ -97,7 +97,14 @@ public class KDBClient {
     }
 
     private String formatKDBValue(KDBType type, Object value) {
-        if (type == KDBType.Date) {
+        if (type == KDBType.String) {
+            String s = ((Slice) value).toStringUtf8();
+            if (s.length() < 2) {
+                return "(enlist \"" + s + "\")";
+            } else {
+                return "\"" + s + "\"";
+            }
+        } else if (type == KDBType.Date) {
             LocalDate date = LocalDate.ofEpochDay((long) value);
             return date.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
         } else if (value instanceof Slice) {
@@ -138,7 +145,7 @@ public class KDBClient {
 
         if (singleValues.size() == 1) {
             if (column.getKdbType() == KDBType.String) {
-                disjuncts.add(column.getName() + " like \"" + ((Slice) singleValues.get(0)).toStringUtf8() + "\"");
+                disjuncts.add(column.getName() + " like " + formatKDBValue(KDBType.String, singleValues.get(0)));
             } else {
                 disjuncts.add(column.getName() + " = " + formatKDBValue(column.getKdbType(), singleValues.get(0)));
             }
@@ -154,23 +161,15 @@ public class KDBClient {
     }
 
     private int columnFilterPriority(KDBColumnHandle col) {
+        // top priority to partition column of partitioned tables
+        if (col.isPartitionColumn()) return -5;
         // prefer attributes against any columns with attributes
-        if (col.getAttribute().isPresent()) {
-            return -5;
-        }
-        else if (col.getKdbType() == KDBType.Date) {
-            if (col.getName().equals("date")) {
-                return -4;
-            } else {
-                return -3;
-            }
-        } else if (col.getKdbType() == KDBType.Symbol) {
-            return -2;
-        } else if (col.getKdbType() == KDBType.String) {
-            return 1;
-        } else {
-            return 0;
-        }
+        if (col.getAttribute().isPresent()) return -4;
+        if (col.getKdbType() == KDBType.Date) return -3;
+        if (col.getKdbType() == KDBType.Symbol) return -2;
+        // String comparisons "like" are usually expensive, do them last
+        if (col.getKdbType() == KDBType.String) return 1;
+        return 0;
     }
 
     private String constructFilters(TupleDomain<ColumnHandle> domain) {
@@ -204,7 +203,7 @@ public class KDBClient {
 
         // "select count(*) type use cases
         if (columns.isEmpty()) {
-            columns = List.of(new KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long, null));
+            columns = List.of(new KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long, null, false));
         }
 
         // Flip of column names, column values (arrays)
@@ -265,7 +264,7 @@ public class KDBClient {
         for (int i=0; i<columns.length; i++) {
             ColumnMetadata meta = columnMetadata.get(i);
             stats.put(
-                    new KDBColumnHandle(meta.getName(), meta.getType(), (KDBType) meta.getProperties().get("kdb.type"), (Optional<KDBAttribute>) meta.getProperties().get("kdb.attribute")),
+                    new KDBColumnHandle(meta.getName(), meta.getType(), (KDBType) meta.getProperties().get("kdb.type"), (Optional<KDBAttribute>) meta.getProperties().get("kdb.attribute"), (boolean) meta.getProperties().get("kdb.isPartitionColumn")),
                     new ColumnStatistics(Estimate.of((double) nullCounts[i] / rows), Estimate.of(distinctCounts[i]), Estimate.of(sizes[i]), Optional.empty()));
         }
 

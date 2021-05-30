@@ -12,17 +12,20 @@ public class KDBColumnHandle implements ColumnHandle {
     private final Type type;
     private final KDBType kdbType;
     private final Optional<KDBAttribute> attribute;
+    private final boolean isPartitionColumn;
 
     @JsonCreator
     public KDBColumnHandle(
             @JsonProperty("name") String name,
             @JsonProperty("type") Type type,
             @JsonProperty("kdbType") KDBType kdbType,
-            @JsonProperty("attribute") Optional<KDBAttribute> attribute) {
+            @JsonProperty("attribute") Optional<KDBAttribute> attribute,
+            @JsonProperty("isPartitionColumn") boolean isPartitionColumn) {
         this.name = name;
         this.type = type;
         this.kdbType = kdbType;
         this.attribute = attribute;
+        this.isPartitionColumn = isPartitionColumn;
     }
 
     @JsonProperty
@@ -41,6 +44,10 @@ public class KDBColumnHandle implements ColumnHandle {
     @JsonProperty
     public Optional<KDBAttribute> getAttribute() {
         return attribute;
+    }
+
+    public boolean isPartitionColumn() {
+        return isPartitionColumn;
     }
 
     @Override

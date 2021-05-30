@@ -105,7 +105,8 @@ public class KDBMetadata implements ConnectorMetadata {
                             col.getName(),
                             col.getType(),
                             (KDBType) col.getProperties().get("kdb.type"),
-                            (Optional<KDBAttribute>) col.getProperties().get("kdb.attribute"))));
+                            (Optional<KDBAttribute>) col.getProperties().get("kdb.attribute"),
+                            (boolean) col.getProperties().get("kdb.isPartitionColumn"))));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
