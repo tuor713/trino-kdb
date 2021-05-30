@@ -17,6 +17,7 @@ public enum KDBType {
             BooleanType.BOOLEAN.writeBoolean(bb, b);
         }
     }),
+    BooleanArray('B', new ArrayType(BooleanType.BOOLEAN), (bb, values) -> { writeArray(KDBType.Boolean, bb, values); }),
     GUID('g', UuidType.UUID, (bb, values) -> {
         for (UUID uuid : (UUID[]) values) {
             Slice slice = Slices.allocate(16);
@@ -25,36 +26,43 @@ public enum KDBType {
             UuidType.UUID.writeSlice(bb, slice);
         }
     }),
+    GUIDArray('G', new ArrayType(UuidType.UUID), (bb, values) -> { writeArray(KDBType.GUID, bb, values); }),
     Byte('x', TinyintType.TINYINT, (bb, values) -> {
         for (byte b : (byte[]) values) {
             TinyintType.TINYINT.writeLong(bb, b);
         }
     }),
+    ByteArray('X', new ArrayType(TinyintType.TINYINT), (bb, values) -> { writeArray(KDBType.Byte, bb, values); }),
     Short('h', SmallintType.SMALLINT, (bb, values) -> {
         for (short s: (short[]) values) {
             SmallintType.SMALLINT.writeLong(bb, s);
         }
     }),
+    ShortArray('H', new ArrayType(SmallintType.SMALLINT), (bb, values) -> { writeArray(KDBType.Short, bb, values); }),
     Int('i', IntegerType.INTEGER, (bb, values) -> {
         for (int i : (int[]) values) {
             IntegerType.INTEGER.writeLong(bb, i);
         }
     }),
+    IntArray('I', new ArrayType(IntegerType.INTEGER), (bb, values) -> { writeArray(KDBType.Int, bb, values); }),
     Long('j', BigintType.BIGINT, (bb, values) -> {
         for (long l : (long[]) values) {
             BigintType.BIGINT.writeLong(bb, l);
         }
     }),
+    LongArray('J', new ArrayType(BigintType.BIGINT), (bb, values) -> { writeArray(KDBType.Long, bb, values); }),
     Real('e', DoubleType.DOUBLE, (bb, values) -> {
         for (float f : (float[]) values) {
             DoubleType.DOUBLE.writeDouble(bb, f);
         }
     }),
+    RealArray('E', new ArrayType(DoubleType.DOUBLE), (bb, values) -> { writeArray(KDBType.Real, bb, values); }),
     Float('f', DoubleType.DOUBLE, (bb, values) -> {
         for (double d : (double[]) values) {
             DoubleType.DOUBLE.writeDouble(bb, d);
         }
     }),
+    FloatArray('F', new ArrayType(DoubleType.DOUBLE), (bb, values) -> { writeArray(KDBType.Float, bb, values); }),
     Char('c', Constants.CHAR_TYPE, (bb, values) -> {
         for (char c : (char[]) values) {
             Constants.CHAR_TYPE.writeString(bb, java.lang.String.valueOf(c));
@@ -70,49 +78,58 @@ public enum KDBType {
             VarcharType.VARCHAR.writeString(bb, s);
         }
     }),
+    SymbolArray('S', new ArrayType(VarcharType.VARCHAR), (bb, values) -> { writeArray(KDBType.Symbol, bb, values); }),
     Timestamp('p', TimestampType.TIMESTAMP_MICROS, (bb, values) -> {
         for (java.sql.Timestamp ts :(java.sql.Timestamp[]) values) {
             TimestampType.TIMESTAMP_MICROS.writeLong(bb,ts.getTime()*1000 + ts.getNanos()/1000);
         }
     }),
+    TimestampArray('P', new ArrayType(TimestampType.TIMESTAMP_MICROS), (bb, values) -> { writeArray(KDBType.Timestamp, bb, values); }),
     Month('m', VarcharType.createVarcharType(10), (bb, values) -> {
         for (c.Month m : (c.Month[]) values) {
             VarcharType.VARCHAR.writeString(bb, m.toString());
         }
     }),
+    MonthArray('M', new ArrayType(VarcharType.createVarcharType(10)), (bb, values) -> { writeArray(KDBType.Month, bb, values); }),
     Date('d', DateType.DATE, (bb, values) -> {
         for (java.sql.Date d : (java.sql.Date[]) values) {
             DateType.DATE.writeLong(bb, LocalDate.of(d.getYear()+1900, d.getMonth()+1, d.getDate()).toEpochDay());
         }
     }),
+    DateArray('D', new ArrayType(DateType.DATE), (bb, values) -> { writeArray(KDBType.Date, bb, values); }),
     DateTime('z', TimestampType.TIMESTAMP_MILLIS, (bb, values) -> {
         for (java.util.Date ts :(java.util.Date[]) values) {
             TimestampType.TIMESTAMP_MILLIS.writeLong(bb, ts.getTime()*1000);
         }
     }),
+    DateTimeArray('Z', new ArrayType(TimestampType.TIMESTAMP_MILLIS), (bb, values) -> { writeArray(KDBType.DateTime, bb, values); }),
     TimeSpan('n', VarcharType.VARCHAR, (bb, values) -> {
         for (c.Timespan ts : (c.Timespan[]) values) {
             VarcharType.VARCHAR.writeString(bb, ts.toString());
         }
     }),
+    TimeSpanArray('N', new ArrayType(VarcharType.VARCHAR), (bb, values) -> { writeArray(KDBType.TimeSpan, bb, values); }),
     Minute('u', TimeType.TIME_SECONDS, (bb, values) -> {
         for (c.Minute m : (c.Minute[]) values) {
             TimeType.TIME_SECONDS.writeLong(bb, (long) m.i * 60_000_000_000_000L);
         }
     }),
+    MinuteArray('U', new ArrayType(TimeType.TIME_SECONDS), (bb, values) -> { writeArray(KDBType.Minute, bb, values); }),
     Second('v', TimeType.TIME_SECONDS, (bb, values) -> {
         for (c.Second s : (c.Second[]) values) {
             TimeType.TIME_SECONDS.writeLong(bb, (long) s.i * 1_000_000_000_000L);
         }
     }),
+    SecondArray('V', new ArrayType(TimeType.TIME_SECONDS), (bb, values) -> { writeArray(KDBType.Second, bb, values); }),
     Time('t', TimeType.TIME_MILLIS, (bb, values) -> {
         for (java.sql.Time time : (java.sql.Time[]) values) {
             TimeType.TIME_MILLIS.writeLong(bb, time.getTime() * 1_000_000_000L);
         }
-    });
+    }),
+    TimeArray('T', new ArrayType(TimeType.TIME_MILLIS), (bb, values) -> { writeArray(KDBType.Time, bb, values); });
 
     @FunctionalInterface
-    public static interface BlockWriter {
+    public interface BlockWriter {
         void write(BlockBuilder bb, Object value);
     }
 
@@ -138,7 +155,15 @@ public enum KDBType {
         writer.write(bb, values);
     }
 
+    private static void writeArray(KDBType inner, BlockBuilder bb, Object values) {
+        for (Object ls: (Object[]) values) {
+            BlockBuilder sub = bb.beginBlockEntry();
+            inner.writeBlock(sub, ls);
+            bb.closeEntry();
+        }
+    }
+
     public static KDBType fromTypeCode(char c) {
-        return Arrays.stream(KDBType.values()).filter(t -> t.getTypeCode() == c).findFirst().get();
+        return Arrays.stream(KDBType.values()).filter(t -> t.getTypeCode() == c).findFirst().orElseThrow(() -> new UnsupportedOperationException("Type " + c + " is not implemented"));
     }
 }

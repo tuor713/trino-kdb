@@ -6,6 +6,8 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.statistics.TableStatistics;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.BigintType;
 import io.trino.testing.*;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testng.annotations.BeforeClass;
@@ -32,6 +34,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("atable:([] name:`Dent`Beeblebrox`Prefect; iq:98 42 126)");
         conn.k("btable:([] booleans:001b; guids: 3?0Ng; bytes: `byte$1 2 3; shorts: `short$1 2 3; ints: `int$1 2 3; longs: `long$1 2 3; reals: `real$1 2 3; floats: `float$1 2 3; chars:\"abc\"; strings:(\"hello\"; \"world\"; \"trino\"); symbols:`a`b`c; timestamps: `timestamp$1 2 3; months: `month$1 2 3; dates: `date$1 2 3; datetimes: `datetime$1 2 3; timespans: `timespan$1 2 3; minutes: `minute$1 2 3; seconds: `second$1 2 3; times: `time$1 2 3 )");
         conn.k("ctable:([] const:1000000#1; linear:til 1000000; sym:1000000#`hello`world`trino; s:1000000#string `hello`world`trino)");
+        conn.k("dtable:([] num:1 2 3; num_array: (1 2 3; 3 4 5; 6 7 8))");
         conn.k("keyed_table:([name:`Dent`Beeblebrox`Prefect] iq:98 42 126)");
         conn.k("tfunc:{[] atable}");
         Path p = Files.createTempDirectory("splay");
@@ -69,7 +72,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         KDBMetadata metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), false);
         List<SchemaTableName> tables = metadata.listTables(session, Optional.empty());
 
-        Set<String> expected = Set.of("atable","btable","ctable", "keyed_table", "splay_table");
+        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table");
 
         assertEquals(tables.size(), expected.size());
         assertEquals(tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()), expected);
@@ -206,6 +209,18 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
 
         query("select * from \"select from atable\" limit 2", 2);
         assertLastQuery("select [50000] from select name, iq from (select from atable) where i<2");
+    }
+
+    @Test
+    public void testNestedArray() {
+        // array of long
+        query("select * from dtable", 3);
+        assertEquals(res.getTypes(), List.of(BigintType.BIGINT, new ArrayType(BigintType.BIGINT)));
+
+        // array of double
+        query("select * from \"([] col:(1.0 2.0; 3.0 4.0))\"", 2);
+        // array of symbols
+        query("select * from \"([] col:(`a`b`c; `d`e`f))\"", 2);
     }
 
     private static String lastQuery = null;

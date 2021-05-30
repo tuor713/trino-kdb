@@ -13,7 +13,7 @@ kdb.port=8000
 ### Features
 
 The plugin currently supports:
-- All the KDB primitive types
+- All the KDB primitive types and nested arrays
 - Table and pass through queries
 - Basic schema introspection
 - Limited filter and limit pass through
