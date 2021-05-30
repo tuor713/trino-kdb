@@ -27,10 +27,7 @@ import static io.trino.testing.TestingSession.testSessionBuilder;
 @Test
 public class TestKDBPlugin extends AbstractTestQueryFramework {
 
-    @BeforeClass
-    public static void setupKDB() throws Exception {
-        kx.c conn = new kx.c("localhost", 8000, "user:password");
-
+    private static void initKDB(kx.c conn) throws Exception {
         // create test tables
         conn.k("atable:([] name:`Dent`Beeblebrox`Prefect; iq:98 42 126)");
         conn.k("btable:([] booleans:001b; guids: 3?0Ng; bytes: `byte$1 2 3; shorts: `short$1 2 3; ints: `int$1 2 3; longs: `long$1 2 3; reals: `real$1 2 3; floats: `float$1 2 3; chars:\"abc\"; strings:(\"hello\"; \"world\"; \"trino\"); symbols:`a`b`c; timestamps: `timestamp$1 2 3; months: `month$1 2 3; dates: `date$1 2 3; datetimes: `datetime$1 2 3; timespans: `timespan$1 2 3; minutes: `minute$1 2 3; seconds: `second$1 2 3; times: `time$1 2 3 )");
@@ -42,6 +39,12 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         String dirPath = p.toAbsolutePath().toString();
         conn.k("`:" + dirPath + " set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
         conn.k("\\l "+dirPath);
+    }
+
+    @BeforeClass
+    public static void setupKDB() throws Exception {
+        kx.c conn = new kx.c("localhost", 8000, "user:password");
+        initKDB(conn);
 
         Logger.getLogger(KDBClient.class.getName()).addHandler(new Handler() {
             @Override
@@ -82,6 +85,22 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), true);
         stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
+    }
+
+    // this test kills the local KDB instance and is a bit of a pain to run, hence disabled by default
+    @Test(enabled = false)
+    public void testReconnect() throws Exception {
+        kx.c conn = new kx.c("localhost", 8000, "user:password");
+        String command = new String((char[]) conn.k("(system \"pwd\")[0] , \"/\" , \" \" sv .z.X"));
+        conn.ks("exit 0");
+
+        Runtime.getRuntime().exec(command);
+        Thread.sleep(50);
+
+        conn = new kx.c("localhost", 8000, "user:password");
+        initKDB(conn);
+
+        query("select * from atable", 3);
     }
 
     @Test

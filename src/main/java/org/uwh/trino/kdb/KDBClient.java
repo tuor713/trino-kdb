@@ -18,6 +18,7 @@ import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
 import kx.c;
 
+import java.io.EOFException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -27,15 +28,19 @@ public class KDBClient {
     private static final Logger LOGGER = Logger.get(KDBClient.class);
     private final String host;
     private final int port;
-    private String user;
-    private String password;
-    private final kx.c connection;
+    private final String user;
+    private final String password;
+    private kx.c connection;
 
     public KDBClient(String host, int port, String user, String password) throws Exception {
         this.host = host;
         this.port = port;
         this.user = user;
         this.password = password;
+        connect();
+    }
+
+    private void connect() throws Exception {
         if (user != null && password != null) {
             connection = new c(host, port, user + ":" + password);
         } else {
@@ -43,13 +48,24 @@ public class KDBClient {
         }
     }
 
+    private Object exec(String expr) throws Exception {
+        try {
+            return connection.k(expr);
+        } catch (EOFException e) {
+            // happens when connection has been lost, for example KDB process restarted
+            // try reconnect
+            connect();
+            return connection.k(expr);
+        }
+    }
+
     public List<String> listTables() throws Exception {
-        String[] res = (String[]) connection.k("system \"a\"");
+        String[] res = (String[]) exec("system \"a\"");
         return Arrays.asList(res);
     }
 
     public List<ColumnMetadata> getTableMeta(String name) throws Exception {
-        c.Dict res = (c.Dict) connection.k("meta "+name);
+        c.Dict res = (c.Dict) exec("meta "+name);
         c.Flip columns = (c.Flip) res.x;
         c.Flip colMeta = (c.Flip) res.y;
         String[] colNames = (String[]) columns.y[0];
@@ -184,7 +200,7 @@ public class KDBClient {
         }
 
         LOGGER.info("KDB query: "+query);
-        c.Flip res = (c.Flip) connection.k(query);
+        c.Flip res = (c.Flip) exec(query);
 
         PageBuilder builder = new PageBuilder(columns.stream().map(col -> col.getType()).collect(Collectors.toList()));
 
@@ -199,7 +215,7 @@ public class KDBClient {
 
     public TableStatistics getTableStatistics(KDBTableHandle table) throws Exception {
         LOGGER.info("Collecting statistics for table " + table.getSchemaName() + "." + table.getTableName());
-        long rows = (long) connection.k("count " + table.getTableName());
+        long rows = (long) exec("count " + table.getTableName());
 
         List<ColumnMetadata> columnMetadata = getTableMeta(table.getTableName());
         String colQuery = columnMetadata.stream()
@@ -210,7 +226,7 @@ public class KDBClient {
                         "from " + table.getTableName() + ")")
                 .collect(Collectors.joining(" uj "));
 
-        c.Flip colMeta = (c.Flip) connection.k(colQuery);
+        c.Flip colMeta = (c.Flip) exec(colQuery);
         String[] columns = (String[]) colMeta.y[0];
         long[] distinctCounts = (long[]) colMeta.y[1];
         long[] nullCounts = (long[]) colMeta.y[2];
