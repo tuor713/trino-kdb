@@ -38,7 +38,7 @@ public class TestKDBMetadata {
     public void testListTables() {
         List<SchemaTableName> tables = sut.listTables(session, Optional.empty());
 
-        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table");
+        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table", "partition_table");
 
         assertEquals(tables.size(), expected.size());
         assertEquals(tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()), expected);

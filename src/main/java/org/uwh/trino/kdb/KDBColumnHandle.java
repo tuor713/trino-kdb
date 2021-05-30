@@ -46,6 +46,7 @@ public class KDBColumnHandle implements ColumnHandle {
         return attribute;
     }
 
+    @JsonProperty("isPartitionColumn")
     public boolean isPartitionColumn() {
         return isPartitionColumn;
     }

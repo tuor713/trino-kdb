@@ -37,11 +37,21 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("attribute_table:([] unique_col: `u#`a`b`c; sorted_col: `s#1 2 3; parted_col: `p#1 1 2; grouped_col: `g#`a`b`c; plain_col: 1 2 3)");
 
         conn.k("tfunc:{[] atable}");
-        Path p = Files.createTempDirectory("splay");
-        p = p.resolve("splay_table");
+        Path tempp = Files.createTempDirectory("splay");
+        Path p = tempp.resolve("splay_table");
         String dirPath = p.toAbsolutePath().toString();
-        conn.k("`:" + dirPath + " set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
+        conn.k("`:" + dirPath + "/ set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
         conn.k("\\l "+dirPath);
+
+        Path p2 = tempp.resolve("db");
+        dirPath = p2.toAbsolutePath().toString();
+        Files.createDirectories(p2);
+        System.out.println(dirPath);
+        conn.k("`:"+dirPath + "/2021.05.28/partition_table/ set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
+        conn.k("`:"+dirPath + "/2021.05.29/partition_table/ set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
+        conn.k("`:"+dirPath + "/2021.05.30/partition_table/ set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
+        conn.k("`:"+dirPath + "/2021.05.31/partition_table/ set ([] v1:10 20 30; v2:1.1 2.2 3.3)");
+        conn.k("\\l " + dirPath);
     }
 
     @BeforeClass
@@ -218,6 +228,17 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select * from \"([] col:(1.0 2.0; 3.0 4.0))\"", 2);
         // array of symbols
         query("select * from \"([] col:(`a`b`c; `d`e`f))\"", 2);
+    }
+
+    @Test
+    public void testPartitionedTable() {
+        query("select count(*) from partition_table", 1);
+        // 3 rows * 4 days
+        assertEquals(res.getOnlyColumnAsSet(), Set.of(12L));
+
+        // 3 rows in one date
+        query("select count(*) from partition_table where date = DATE '2021-05-28'", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of(3L));
     }
 
     private static String lastQuery = null;

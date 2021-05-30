@@ -204,6 +204,9 @@ public class KDBClient {
         // "select count(*) type use cases
         if (columns.isEmpty()) {
             columns = List.of(new KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long, null, false));
+        // one more weird exception select date from <partitioned table> where date = <x> gives only a single row
+        } else if (columns.size() == 1 && columns.get(0).isPartitionColumn()) {
+            columns = List.of(columns.get(0), new KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long, null, false));
         }
 
         // Flip of column names, column values (arrays)
