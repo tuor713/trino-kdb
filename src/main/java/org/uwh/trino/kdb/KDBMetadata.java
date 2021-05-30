@@ -1,13 +1,10 @@
 package org.uwh.trino.kdb;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.*;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.TableStatistics;
-import io.trino.spi.type.Type;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -23,32 +20,6 @@ public class KDBMetadata implements ConnectorMetadata {
     private final KDBClient client;
     private final boolean useStats;
     private final StatsManager stats;
-
-    public static class KDBColumnHandle implements ColumnHandle {
-        final String name;
-        final Type type;
-        final KDBType kdbType;
-
-        @JsonCreator
-        public KDBColumnHandle(@JsonProperty("name") String name, @JsonProperty("type") Type type, @JsonProperty("kdbType") KDBType kdbType) {
-            this.name = name;
-            this.type = type;
-            this.kdbType = kdbType;
-        }
-
-        @JsonProperty
-        public String getName() {
-            return name;
-        }
-
-        @JsonProperty
-        public Type getType() {
-            return type;
-        }
-
-        @JsonProperty
-        public KDBType getKdbType() { return kdbType; }
-    }
 
     public KDBMetadata(KDBClient client, boolean useStats) {
         this.client = client;
@@ -129,7 +100,12 @@ public class KDBMetadata implements ConnectorMetadata {
         KDBTableHandle handle = (KDBTableHandle) tableHandle;
         try {
             List<ColumnMetadata> columns = client.getTableMeta(handle.getTableName());
-            columns.forEach(col -> builder.put(col.getName(), new KDBColumnHandle(col.getName(), col.getType(), (KDBType) col.getProperties().get("kdb.type"))));
+            columns.forEach(col -> builder.put(col.getName(),
+                    new KDBColumnHandle(
+                            col.getName(),
+                            col.getType(),
+                            (KDBType) col.getProperties().get("kdb.type"),
+                            (Optional<KDBAttribute>) col.getProperties().get("kdb.attribute"))));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -140,7 +116,7 @@ public class KDBMetadata implements ConnectorMetadata {
     @Override
     public ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle) {
         KDBColumnHandle handle = (KDBColumnHandle) columnHandle;
-        return new ColumnMetadata(handle.name, handle.type);
+        return new ColumnMetadata(handle.getName(), handle.getType());
     }
 
     @Override

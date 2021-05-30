@@ -16,7 +16,6 @@ import org.testng.annotations.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -26,16 +25,17 @@ import java.util.stream.Collectors;
 import static org.testng.Assert.*;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 
-@Test
 public class TestKDBPlugin extends AbstractTestQueryFramework {
 
-    private static void initKDB(kx.c conn) throws Exception {
+    public static void initKDB(kx.c conn) throws Exception {
         // create test tables
         conn.k("atable:([] name:`Dent`Beeblebrox`Prefect; iq:98 42 126)");
         conn.k("btable:([] booleans:001b; guids: 3?0Ng; bytes: `byte$1 2 3; shorts: `short$1 2 3; ints: `int$1 2 3; longs: `long$1 2 3; reals: `real$1 2 3; floats: `float$1 2 3; chars:\"abc\"; strings:(\"hello\"; \"world\"; \"trino\"); symbols:`a`b`c; timestamps: `timestamp$1 2 3; months: `month$1 2 3; dates: `date$1 2 3; datetimes: `datetime$1 2 3; timespans: `timespan$1 2 3; minutes: `minute$1 2 3; seconds: `second$1 2 3; times: `time$1 2 3 )");
         conn.k("ctable:([] const:1000000#1; linear:til 1000000; sym:1000000#`hello`world`trino; s:1000000#string `hello`world`trino)");
         conn.k("dtable:([] num:1 2 3; num_array: (1 2 3; 3 4 5; 6 7 8))");
         conn.k("keyed_table:([name:`Dent`Beeblebrox`Prefect] iq:98 42 126)");
+        conn.k("attribute_table:([] unique_col: `u#`a`b`c; sorted_col: `s#1 2 3; parted_col: `p#1 1 2; grouped_col: `g#`a`b`c; plain_col: 1 2 3)");
+
         conn.k("tfunc:{[] atable}");
         Path p = Files.createTempDirectory("splay");
         p = p.resolve("splay_table");
@@ -64,18 +64,6 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
             @Override
             public void close() throws SecurityException {}
         });
-    }
-
-    @Test
-    public void testMetadata() throws Exception {
-        ConnectorSession session = TestingConnectorSession.builder().build();
-        KDBMetadata metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), false);
-        List<SchemaTableName> tables = metadata.listTables(session, Optional.empty());
-
-        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table");
-
-        assertEquals(tables.size(), expected.size());
-        assertEquals(tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()), expected);
     }
 
     @Test
@@ -157,6 +145,12 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select * from atable where name = 'Dent'", 1);
         assertLastQuery("select [50000] from select name, iq from atable where name = `Dent");
         assertResultColumn(0, Set.of("Dent"));
+    }
+
+    @Test
+    public void testFilterWithAttributes() {
+        query("select * from \"([] id:`s#0 1 2; name:`alice`bob`charlie; age:28 35 28)\" where age = 28 and id = 0", 1);
+        assertLastQuery("select [50000] from select id, name, age from (([] id:`s#0 1 2; name:`alice`bob`charlie; age:28 35 28)) where id = 0, age = 28");
     }
 
     @Test

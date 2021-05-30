@@ -16,7 +16,7 @@ public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
     @Override
     public ConnectorPageSource createPageSource(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorSplit split, ConnectorTableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter) {
         KDBTableHandle tHandle = (KDBTableHandle) table;
-        List<KDBMetadata.KDBColumnHandle> tColumns = (List) columns;
+        List<KDBColumnHandle> tColumns = (List) columns;
 
         return new KDBPageSource(client, config, tHandle, tColumns);
     }

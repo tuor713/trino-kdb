@@ -10,7 +10,7 @@ public class KDBHandleResolver implements ConnectorHandleResolver {
 
     @Override
     public Class<? extends ColumnHandle> getColumnHandleClass() {
-        return KDBMetadata.KDBColumnHandle.class;
+        return KDBColumnHandle.class;
     }
 
     @Override

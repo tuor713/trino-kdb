@@ -52,4 +52,14 @@ public class KDBTableHandle implements ConnectorTableHandle {
     public boolean isQuery() {
         return !tableName.matches("[a-zA-Z.][a-zA-Z._0-9]*");
     }
+
+    @Override
+    public String toString() {
+        return "KDBTableHandle{" +
+                "schemaName='" + schemaName + '\'' +
+                ", tableName='" + tableName + '\'' +
+                ", constraint=" + constraint +
+                ", limit=" + limit +
+                '}';
+    }
 }

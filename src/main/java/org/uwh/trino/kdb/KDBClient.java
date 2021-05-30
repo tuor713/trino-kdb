@@ -70,11 +70,26 @@ public class KDBClient {
         c.Flip colMeta = (c.Flip) res.y;
         String[] colNames = (String[]) columns.y[0];
         char[] types = (char[]) colMeta.y[0];
+        String[] attributes = (String[]) colMeta.y[2];
 
         List<ColumnMetadata> result = new ArrayList<>();
         for (int i=0; i<colNames.length; i++) {
             KDBType kdbType = KDBType.fromTypeCode(types[i]);
-            ColumnMetadata col = new ColumnMetadata(colNames[i], kdbType.getTrinoType(), null, null,false, Map.of("kdb.type", kdbType));
+            Map<String,Object> props;
+            if (attributes[i] != null && !attributes[i].isEmpty()) {
+                props = Map.of("kdb.type", kdbType,
+                        "kdb.attribute", Optional.of(KDBAttribute.fromCode(attributes[i].charAt(0))));
+            } else {
+                props = Map.of("kdb.type", kdbType, "kdb.attribute", Optional.empty());
+            }
+
+            ColumnMetadata col = new ColumnMetadata(
+                    colNames[i],
+                    kdbType.getTrinoType(),
+                    null,
+                    null,
+                    false,
+                    props);
             result.add(col);
         }
 
@@ -93,7 +108,7 @@ public class KDBClient {
         }
     }
 
-    private String constructFilter(KDBMetadata.KDBColumnHandle column, Domain domain) {
+    private String constructFilter(KDBColumnHandle column, Domain domain) {
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
         for (Range range : domain.getValues().getRanges().getOrderedRanges()) {
@@ -138,44 +153,58 @@ public class KDBClient {
         }
     }
 
+    private int columnFilterPriority(KDBColumnHandle col) {
+        // prefer attributes against any columns with attributes
+        if (col.getAttribute().isPresent()) {
+            return -5;
+        }
+        else if (col.getKdbType() == KDBType.Date) {
+            if (col.getName().equals("date")) {
+                return -4;
+            } else {
+                return -3;
+            }
+        } else if (col.getKdbType() == KDBType.Symbol) {
+            return -2;
+        } else if (col.getKdbType() == KDBType.String) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
     private String constructFilters(TupleDomain<ColumnHandle> domain) {
         if (domain.isAll() || domain.getDomains().isEmpty()) {
             return null;
         }
 
-        TreeMap<KDBMetadata.KDBColumnHandle, String> conditions = new TreeMap<KDBMetadata.KDBColumnHandle, String>(
-                Comparator.comparingInt(col -> {
-                    if (col.getKdbType() == KDBType.Date) {
-                        if (col.getName().equals("date")) {
-                            return -4;
-                        } else {
-                            return -3;
-                        }
-                    } else if (col.getKdbType() == KDBType.Symbol) {
-                        return -2;
-                    } else if (col.getKdbType() == KDBType.String) {
-                        return 1;
+        TreeMap<KDBColumnHandle, String> conditions = new TreeMap<>(
+                (left, right) -> {
+                    int leftPriority = columnFilterPriority(left);
+                    int rightPriority = columnFilterPriority(right);
+                    if (leftPriority != rightPriority) {
+                        return Integer.compare(leftPriority, rightPriority);
                     } else {
-                        return 0;
+                        return left.getName().compareTo(right.getName());
                     }
-                })
+                }
         );
 
         for (Map.Entry<ColumnHandle, Domain> e : domain.getDomains().get().entrySet()) {
-            KDBMetadata.KDBColumnHandle col = (KDBMetadata.KDBColumnHandle) e.getKey();
+            KDBColumnHandle col = (KDBColumnHandle) e.getKey();
             conditions.put(col, constructFilter(col, e.getValue()));
         }
 
         return String.join(", ", conditions.values());
     }
 
-    public Page getData(KDBTableHandle handle, List<KDBMetadata.KDBColumnHandle> columns, int page, int pageSize) throws Exception {
+    public Page getData(KDBTableHandle handle, List<KDBColumnHandle> columns, int page, int pageSize) throws Exception {
         String table = handle.getTableName();
         String filter = constructFilters(handle.getConstraint());
 
         // "select count(*) type use cases
         if (columns.isEmpty()) {
-            columns = List.of(new KDBMetadata.KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long));
+            columns = List.of(new KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long, null));
         }
 
         // Flip of column names, column values (arrays)
@@ -236,7 +265,7 @@ public class KDBClient {
         for (int i=0; i<columns.length; i++) {
             ColumnMetadata meta = columnMetadata.get(i);
             stats.put(
-                    new KDBMetadata.KDBColumnHandle(meta.getName(), meta.getType(), (KDBType) meta.getProperties().get("kdb.type")),
+                    new KDBColumnHandle(meta.getName(), meta.getType(), (KDBType) meta.getProperties().get("kdb.type"), (Optional<KDBAttribute>) meta.getProperties().get("kdb.attribute")),
                     new ColumnStatistics(Estimate.of((double) nullCounts[i] / rows), Estimate.of(distinctCounts[i]), Estimate.of(sizes[i]), Optional.empty()));
         }
 
