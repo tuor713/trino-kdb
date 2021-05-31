@@ -64,8 +64,31 @@ public class KDBClient {
         return Arrays.asList(res);
     }
 
+    private boolean isPartitioned(String name) throws Exception {
+        return !KDBTableHandle.isQuery(name) && (boolean) exec("`boolean$.Q.qp["+name+"]");
+    }
+
+    public KDBTableHandle getTableHandle(String schema, String name) throws Exception {
+        boolean isPartitioned = isPartitioned(name);
+        List<String> partitions = List.of();
+        Optional<KDBColumnHandle> partitionColumn = Optional.empty();
+        if (isPartitioned) {
+            Object[] colInfo = (Object[]) exec("((0!meta " + name + ")[`c][0]; (0!meta " + name + ")[`t][0])");
+            String colName = (String) colInfo[0];
+            KDBType colType = KDBType.fromTypeCode((char) colInfo[1]);
+            partitionColumn = Optional.of(new KDBColumnHandle(colName, colType.getTrinoType(), colType, Optional.empty(), true));
+
+            partitions = new ArrayList<>();
+            for (Object partition : (Object[]) exec("string (select distinct " + colName +" from " + name + ")[`" + colName + "]")) {
+                partitions.add(new String((char[]) partition));
+            }
+        }
+
+        return new KDBTableHandle(schema, name, TupleDomain.all(), OptionalLong.empty(), isPartitioned, partitionColumn, partitions);
+    }
+
     public List<ColumnMetadata> getTableMeta(String name) throws Exception {
-        boolean isPartitioned = !KDBTableHandle.isQuery(name) && (boolean) exec("`boolean$.Q.qp["+name+"]");
+        boolean isPartitioned = isPartitioned(name);
 
         c.Dict res = (c.Dict) exec("meta "+name);
         c.Flip columns = (c.Flip) res.x;

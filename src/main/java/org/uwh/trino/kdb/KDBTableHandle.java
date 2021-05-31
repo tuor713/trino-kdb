@@ -7,6 +7,8 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 public class KDBTableHandle implements ConnectorTableHandle {
@@ -14,23 +16,26 @@ public class KDBTableHandle implements ConnectorTableHandle {
     private final String tableName;
     private final TupleDomain<ColumnHandle> constraint;
     private final OptionalLong limit;
-
-    public KDBTableHandle(SchemaTableName name) {
-        this.schemaName = name.getSchemaName();
-        this.tableName = name.getTableName();
-        this.constraint = TupleDomain.all();
-        this.limit = OptionalLong.empty();
-    }
+    private final boolean isPartitioned;
+    // Year represented as yyyy, month as yyyy.MM, date as yyyy.MM.dd inline with KDB representation
+    private final List<String> partitions;
+    private final Optional<KDBColumnHandle> partitionColumn;
 
     @JsonCreator
     public KDBTableHandle(@JsonProperty("schemaName") String schemaName,
                           @JsonProperty("tableName") String tableName,
                           @JsonProperty("constraint") TupleDomain<ColumnHandle> constraint,
-                          @JsonProperty("limit") OptionalLong limit) {
+                          @JsonProperty("limit") OptionalLong limit,
+                          @JsonProperty("isPartitioned") boolean isPartitioned,
+                          @JsonProperty("partitionColumn") Optional<KDBColumnHandle> partitionColumn,
+                          @JsonProperty("partitions") List<String> partitions) {
         this.schemaName = schemaName;
         this.tableName = tableName;
         this.constraint = constraint;
         this.limit = limit;
+        this.isPartitioned = isPartitioned;
+        this.partitionColumn = partitionColumn;
+        this.partitions = partitions;
     }
 
     @JsonProperty
@@ -48,6 +53,21 @@ public class KDBTableHandle implements ConnectorTableHandle {
 
     @JsonProperty
     public OptionalLong getLimit() { return limit; }
+
+    @JsonProperty("isPartitioned")
+    public boolean isPartitioned() {
+        return isPartitioned;
+    }
+
+    @JsonProperty("partitions")
+    public List<String> getPartitions() {
+        return partitions;
+    }
+
+    @JsonProperty("partitionColumn")
+    public Optional<KDBColumnHandle> getPartitionColumn() {
+        return partitionColumn;
+    }
 
     public boolean isQuery() {
         return isQuery(tableName);

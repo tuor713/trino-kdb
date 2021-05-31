@@ -70,7 +70,11 @@ public class KDBMetadata implements ConnectorMetadata {
     @Nullable
     @Override
     public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName) {
-        return new KDBTableHandle(tableName);
+        try {
+            return client.getTableHandle(tableName.getSchemaName(), tableName.getTableName());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -128,7 +132,7 @@ public class KDBMetadata implements ConnectorMetadata {
         }
 
         return Optional.of(new LimitApplicationResult<>(
-                new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit)),
+                new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions()),
                 false
         ));
     }
@@ -142,7 +146,7 @@ public class KDBMetadata implements ConnectorMetadata {
             return Optional.empty();
         }
 
-        KDBTableHandle newHandle = new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), next, khandle.getLimit());
+        KDBTableHandle newHandle = new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions());
 
         return Optional.of(new ConstraintApplicationResult<>(newHandle, constraint.getSummary()));
     }

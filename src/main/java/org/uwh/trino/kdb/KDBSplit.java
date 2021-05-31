@@ -7,13 +7,16 @@ import io.trino.spi.HostAddress;
 import io.trino.spi.connector.ConnectorSplit;
 
 import java.util.List;
+import java.util.Optional;
 
 public class KDBSplit implements ConnectorSplit {
     private final String table;
+    private final Optional<String> partition;
 
     @JsonCreator
-    public KDBSplit(@JsonProperty("table") String table) {
+    public KDBSplit(@JsonProperty("table") String table, @JsonProperty("partition") Optional<String> partition) {
         this.table = table;
+        this.partition = partition;
     }
 
     @Override
@@ -34,5 +37,10 @@ public class KDBSplit implements ConnectorSplit {
     @JsonProperty
     public String getTable() {
         return table;
+    }
+
+    @JsonProperty("partition")
+    public Optional<String> getPartition() {
+        return partition;
     }
 }

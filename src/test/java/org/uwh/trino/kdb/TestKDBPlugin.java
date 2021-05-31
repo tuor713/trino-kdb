@@ -241,6 +241,17 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         assertEquals(res.getOnlyColumnAsSet(), Set.of(3L));
     }
 
+    @Test
+    public void testPartitionedTableQuerySplit() {
+        query("select count(*) from partition_table", 1);
+        assertTrue(Set.of(
+                "select [50000] from select i from partition_table where date = 2021.05.28",
+                "select [50000] from select i from partition_table where date = 2021.05.29",
+                "select [50000] from select i from partition_table where date = 2021.05.30",
+                "select [50000] from select i from partition_table where date = 2021.05.31"
+        ).contains(lastQuery));
+    }
+
     private static String lastQuery = null;
     private MaterializedResult res;
     private static Logger LOGGER = Logger.getLogger(TestKDBPlugin.class.getName());

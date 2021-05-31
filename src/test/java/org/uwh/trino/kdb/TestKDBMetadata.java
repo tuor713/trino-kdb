@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class TestKDBMetadata {
     @BeforeClass
@@ -54,5 +55,15 @@ public class TestKDBMetadata {
         assertEquals(((KDBColumnHandle) columns.get("sorted_col")).getAttribute(), Optional.of(KDBAttribute.Sorted));
         assertEquals(((KDBColumnHandle) columns.get("unique_col")).getAttribute(), Optional.of(KDBAttribute.Unique));
         assertEquals(((KDBColumnHandle) columns.get("plain_col")).getAttribute(), Optional.empty());
+    }
+
+    @Test
+    public void testPartitionedTableMetadata() {
+        KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "partition_table"));
+        Map<String, KDBColumnHandle> columns = (Map) sut.getColumnHandles(session, handle);
+
+        assertTrue(columns.get("date").isPartitionColumn());
+        assertTrue(handle.isPartitioned());
+        assertEquals(handle.getPartitions(), List.of("2021.05.28", "2021.05.29", "2021.05.30", "2021.05.31"));
     }
 }
