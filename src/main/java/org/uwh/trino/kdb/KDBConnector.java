@@ -13,10 +13,12 @@ public class KDBConnector implements Connector {
 
     private final KDBClient client;
     private final Config config;
+    private final StatsManager statsManager;
 
     public KDBConnector(KDBClient client, Config config) {
         this.client = client;
         this.config = config;
+        this.statsManager = new StatsManager(client);
     }
 
     @Override
@@ -26,7 +28,7 @@ public class KDBConnector implements Connector {
 
     @Override
     public ConnectorMetadata getMetadata(ConnectorTransactionHandle transactionHandle) {
-        return new KDBMetadata(client, config.useStats());
+        return new KDBMetadata(client, config.useStats(), statsManager);
     }
 
     @Override

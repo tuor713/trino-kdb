@@ -76,18 +76,6 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         });
     }
 
-    @Test
-    public void testTableStats() throws Exception {
-        ConnectorSession session = TestingConnectorSession.builder().build();
-        KDBMetadata metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), false);
-        TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
-        assertEquals(stats, TableStatistics.empty());
-
-        metadata = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), true);
-        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
-        assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
-    }
-
     // this test kills the local KDB instance and is a bit of a pain to run, hence disabled by default
     @Test(enabled = false)
     public void testReconnect() throws Exception {

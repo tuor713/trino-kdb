@@ -272,13 +272,28 @@ public class KDBClient {
         long rows = (long) exec("count " + table.getTableName());
 
         List<ColumnMetadata> columnMetadata = getTableMeta(table.getTableName());
-        String colQuery = columnMetadata.stream()
-                .map(col -> "(select name:`" + col.getName() + ", dcount, ncount, size " +
-                        "from select dcount:count distinct " + col.getName() + ", " +
-                        ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName() + ", " : "ncount: sum `long$null " + col.getName() + ", ") +
-                        "size: -22!" + col.getName() + " " +
-                        "from " + table.getTableName() + ")")
-                .collect(Collectors.joining(" uj "));
+        String colQuery;
+        if (table.isPartitioned()) {
+            KDBColumnHandle parCol = table.getPartitionColumn().get();;
+            // -22 does not work on the whole table, so calculate partition by partition
+            colQuery = columnMetadata.stream()
+                    .map(col -> "(select name:`" + col.getName() + ", dcount, ncount, size from " +
+                            "update size:(+/) {[v] (select count i, size:-22!" + col.getName() + " from "+ table.getTableName() + " where " + parCol.getName() + " = v)[`size]} each (select distinct " + parCol.getName() +" from "+table.getTableName()+")[`" + parCol.getName()+"] "+
+                            "from select dcount:count distinct " + col.getName() + ", " +
+                            ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName(): "ncount: sum `long$null " + col.getName()) +
+                            " from " + table.getTableName() + ")")
+                    .collect(Collectors.joining(" uj "));
+        } else {
+            colQuery = columnMetadata.stream()
+                    .map(col -> "(select name:`" + col.getName() + ", dcount, ncount, size " +
+                            "from select dcount:count distinct " + col.getName() + ", " +
+                            ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName() + ", " : "ncount: sum `long$null " + col.getName() + ", ") +
+                            "size: -22!" + col.getName() + " " +
+                            "from " + table.getTableName() + ")")
+                    .collect(Collectors.joining(" uj "));
+        }
+
+        LOGGER.info("Column stats query: " + colQuery);
 
         c.Flip colMeta = (c.Flip) exec(colQuery);
         String[] columns = (String[]) colMeta.y[0];

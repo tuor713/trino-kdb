@@ -1,10 +1,8 @@
 package org.uwh.trino.kdb;
 
 import io.trino.metadata.TableHandle;
-import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.*;
+import io.trino.spi.statistics.TableStatistics;
 import io.trino.testing.TestingConnectorSession;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeTest;
@@ -32,7 +30,8 @@ public class TestKDBMetadata {
     @BeforeTest
     public void setup() throws Exception {
         session = TestingConnectorSession.builder().build();
-        sut = new KDBMetadata(new KDBClient("localhost", 8000, "user", "password"), false);
+        KDBClient client = new KDBClient("localhost", 8000, "user", "password");
+        sut = new KDBMetadata(client, true, new StatsManager(client));
     }
 
     @Test
@@ -65,5 +64,25 @@ public class TestKDBMetadata {
         assertTrue(columns.get("date").isPartitionColumn());
         assertTrue(handle.isPartitioned());
         assertEquals(handle.getPartitions(), List.of("2021.05.28", "2021.05.29", "2021.05.30", "2021.05.31"));
+    }
+
+    @Test
+    public void testTableStats() throws Exception {
+        ConnectorSession session = TestingConnectorSession.builder().build();
+        KDBClient client = new KDBClient("localhost", 8000, "user", "password");
+        KDBMetadata metadata = new KDBMetadata(client, false, new StatsManager(client));
+        TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        assertEquals(stats, TableStatistics.empty());
+
+        metadata = new KDBMetadata(client, true, new StatsManager(client));
+        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
+    }
+
+    @Test
+    public void testPartitionedTableStats() {
+        KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "partition_table"));
+        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+        assertEquals(stats.getRowCount().getValue(), 12.0, 0.1);
     }
 }

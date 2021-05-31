@@ -21,10 +21,10 @@ public class KDBMetadata implements ConnectorMetadata {
     private final boolean useStats;
     private final StatsManager stats;
 
-    public KDBMetadata(KDBClient client, boolean useStats) {
+    public KDBMetadata(KDBClient client, boolean useStats, StatsManager stats) {
         this.client = client;
         this.useStats = useStats;
-        this.stats = new StatsManager(client);
+        this.stats = stats;
     }
 
     @Override
