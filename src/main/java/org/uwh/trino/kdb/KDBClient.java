@@ -274,14 +274,13 @@ public class KDBClient {
         List<ColumnMetadata> columnMetadata = getTableMeta(table.getTableName());
         String colQuery;
         if (table.isPartitioned()) {
-            KDBColumnHandle parCol = table.getPartitionColumn().get();;
+            KDBColumnHandle parCol = table.getPartitionColumn().get();
             // -22 does not work on the whole table, so calculate partition by partition
             colQuery = columnMetadata.stream()
                     .map(col -> "(select name:`" + col.getName() + ", dcount, ncount, size from " +
-                            "update size:(+/) {[v] (select count i, size:-22!" + col.getName() + " from "+ table.getTableName() + " where " + parCol.getName() + " = v)[`size]} each (select distinct " + parCol.getName() +" from "+table.getTableName()+")[`" + parCol.getName()+"] "+
-                            "from select dcount:count distinct " + col.getName() + ", " +
-                            ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName(): "ncount: sum `long$null " + col.getName()) +
-                            " from " + table.getTableName() + ")")
+                            "update size:(+/) {[v] (select count i, size:-22!" + col.getName() + " from "+ table.getTableName() + " where " + parCol.getName() + " = v)[`size]} each (select distinct " + parCol.getName() +" from "+table.getTableName()+")[`" + parCol.getName()+"] from "+
+                            "select dcount: `long$(avg dcount) * (count " + table.getTableName() + "), ncount: sum ncount from ((uj/) {[v] select dcount:(count distinct " + col.getName() + ") % (count i), " + ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName(): "ncount: sum `long$null " + col.getName()) + " from " + table.getTableName() + " where " + parCol.getName() + " = v} each (select distinct " + parCol.getName() + " from " + table.getTableName() + ")[`" + parCol.getName() + "])"
+                             + ")")
                     .collect(Collectors.joining(" uj "));
         } else {
             colQuery = columnMetadata.stream()
