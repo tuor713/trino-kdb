@@ -2,29 +2,42 @@ package org.uwh.trino.kdb;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.log.Logger;
 import io.trino.spi.connector.*;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.TableStatistics;
 
 import javax.annotation.Nullable;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalLong;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
 public class KDBMetadata implements ConnectorMetadata {
+    private static final Logger LOGGER = Logger.get(KDBMetadata.class);
     private static final String SCHEMA_NAME = "default";
     private final KDBClient client;
     private final boolean useStats;
     private final StatsManager stats;
+    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private final Map<String,String> tableMetadataCache = new HashMap<>();
 
-    public KDBMetadata(KDBClient client, boolean useStats, StatsManager stats) {
+    public KDBMetadata(KDBClient client, Config config, StatsManager stats) {
         this.client = client;
-        this.useStats = useStats;
+        this.useStats = config.useStats();
         this.stats = stats;
+        executor.scheduleAtFixedRate(this::refreshMetadata, 0, config.getMetadataRefreshInterval(), TimeUnit.SECONDS);
+    }
+
+    private void refreshMetadata() {
+        try {
+            client.listTables().stream().forEach( t-> {
+                tableMetadataCache.put(t.toLowerCase(Locale.ENGLISH), t);
+            });
+        } catch (Exception e) {
+            LOGGER.warn(e, "Failed to refresh KDB metadata from instance: " + client.getHost() + ":" + client.getPort());
+        }
     }
 
     @Override
@@ -71,7 +84,13 @@ public class KDBMetadata implements ConnectorMetadata {
     @Override
     public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName) {
         try {
-            return client.getTableHandle(tableName.getSchemaName(), tableName.getTableName());
+            String tName = tableName.getTableName();
+            // Retrieve original capitalization since KDB is case sensitive
+            if (tableMetadataCache.containsKey(tName)) {
+                tName = tableMetadataCache.get(tName);
+            }
+
+            return client.getTableHandle(tableName.getSchemaName(), tName);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -106,7 +125,8 @@ public class KDBMetadata implements ConnectorMetadata {
             List<ColumnMetadata> columns = client.getTableMeta(handle.getTableName());
             columns.forEach(col -> builder.put(col.getName(),
                     new KDBColumnHandle(
-                            col.getName(),
+                            // use the original capitalization
+                            (String) col.getProperties().get("kdb.name"),
                             col.getType(),
                             (KDBType) col.getProperties().get("kdb.type"),
                             (Optional<KDBAttribute>) col.getProperties().get("kdb.attribute"),

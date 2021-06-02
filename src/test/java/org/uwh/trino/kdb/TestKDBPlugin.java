@@ -35,6 +35,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("dtable:([] num:1 2 3; num_array: (1 2 3; 3 4 5; 6 7 8))");
         conn.k("keyed_table:([name:`Dent`Beeblebrox`Prefect] iq:98 42 126)");
         conn.k("attribute_table:([] unique_col: `u#`a`b`c; sorted_col: `s#1 2 3; parted_col: `p#1 1 2; grouped_col: `g#`a`b`c; plain_col: 1 2 3)");
+        conn.k("CaseSensitiveTable:([] Number: 1 2 3 4; Square: 1 4 9 16)");
 
         conn.k("tfunc:{[] atable}");
         Path tempp = Files.createTempDirectory("splay");
@@ -238,6 +239,17 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
                 "select [50000] from select i from partition_table where date = 2021.05.30",
                 "select [50000] from select i from partition_table where date = 2021.05.31"
         ).contains(lastQuery));
+    }
+
+    @Test
+    public void testCaseSensitiveTable() {
+        query("select * from CaseSensitiveTable", 4);
+    }
+
+    // no solution yet for dynamic queries
+    @Test(enabled = false)
+    public void testCaseSensitiveQuery() {
+        query("select * from \"select from CaseSensitiveTable\"", 4);
     }
 
     private static String lastQuery = null;

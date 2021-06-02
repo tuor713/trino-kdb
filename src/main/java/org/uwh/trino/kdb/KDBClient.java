@@ -40,6 +40,14 @@ public class KDBClient {
         connect();
     }
 
+    public String getHost() {
+        return host;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
     private void connect() throws Exception {
         if (user != null && password != null) {
             connection = new c(host, port, user + ":" + password);
@@ -101,6 +109,8 @@ public class KDBClient {
         for (int i=0; i<colNames.length; i++) {
             KDBType kdbType = KDBType.fromTypeCode(types[i]);
             Map<String,Object> props = Map.of(
+                    // need to capture this because ColumnMetadata lower cases the column
+                    "kdb.name", colNames[i],
                     "kdb.type", kdbType,
                     "kdb.attribute", attributes[i] != null && !attributes[i].isEmpty() ? Optional.of(KDBAttribute.fromCode(attributes[i].charAt(0))) : Optional.empty(),
                     "kdb.isPartitionColumn", isPartitioned && i == 0

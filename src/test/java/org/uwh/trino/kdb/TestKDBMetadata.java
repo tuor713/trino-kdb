@@ -31,14 +31,15 @@ public class TestKDBMetadata {
     public void setup() throws Exception {
         session = TestingConnectorSession.builder().build();
         KDBClient client = new KDBClient("localhost", 8000, "user", "password");
-        sut = new KDBMetadata(client, true, new StatsManager(client));
+        sut = new KDBMetadata(client, new Config(Map.of(Config.KDB_USE_STATS_KEY, "true")), new StatsManager(client));
     }
 
     @Test
     public void testListTables() {
         List<SchemaTableName> tables = sut.listTables(session, Optional.empty());
 
-        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table", "partition_table");
+        // SchemaTableName always lower cases - no way to work around :(
+        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table", "partition_table", "casesensitivetable");
 
         assertEquals(tables.size(), expected.size());
         assertEquals(tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()), expected);
@@ -70,11 +71,11 @@ public class TestKDBMetadata {
     public void testTableStats() throws Exception {
         ConnectorSession session = TestingConnectorSession.builder().build();
         KDBClient client = new KDBClient("localhost", 8000, "user", "password");
-        KDBMetadata metadata = new KDBMetadata(client, false, new StatsManager(client));
+        KDBMetadata metadata = new KDBMetadata(client, new Config(Map.of(Config.KDB_USE_STATS_KEY, "false")), new StatsManager(client));
         TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats, TableStatistics.empty());
 
-        metadata = new KDBMetadata(client, true, new StatsManager(client));
+        metadata = new KDBMetadata(client, new Config(Map.of(Config.KDB_USE_STATS_KEY, "true")), new StatsManager(client));
         stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
     }
