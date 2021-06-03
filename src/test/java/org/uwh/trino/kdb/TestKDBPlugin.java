@@ -247,9 +247,9 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     }
 
     // no solution yet for dynamic queries
-    @Test(enabled = false)
+    @Test
     public void testCaseSensitiveQuery() {
-        query("select * from \"select from CaseSensitiveTable\"", 4);
+        query("select * from \"select from \\Case\\Sensitive\\Table\"", 4);
     }
 
     private static String lastQuery = null;

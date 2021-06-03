@@ -90,10 +90,38 @@ public class KDBMetadata implements ConnectorMetadata {
                 tName = tableMetadataCache.get(tName);
             }
 
+            if (KDBTableHandle.isQuery(tName) && tName.contains("\\")) {
+                tName = unescapeDynamicQuery(tName);
+            }
+
             return client.getTableHandle(tableName.getSchemaName(), tName);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private String unescapeDynamicQuery(String name) {
+        StringBuilder res = new StringBuilder();
+        boolean escape = false;
+        for (char c : name.toCharArray()) {
+            if (c == '\\') {
+                if (escape) {
+                    escape = false;
+                    res.append('\\');
+                } else {
+                    escape = true;
+                }
+            } else {
+                if (escape) {
+                    res.append(Character.toUpperCase(c));
+                    escape = false;
+                } else {
+                    res.append(c);
+                }
+            }
+        }
+
+        return res.toString();
     }
 
     @Override
