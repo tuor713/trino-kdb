@@ -18,7 +18,7 @@ import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
 import kx.c;
 
-import java.io.EOFException;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -59,7 +59,8 @@ public class KDBClient {
     private Object exec(String expr) throws Exception {
         try {
             return connection.k(expr);
-        } catch (EOFException e) {
+        // SocketException & EOFEXception
+        } catch (IOException e) {
             // happens when connection has been lost, for example KDB process restarted
             // try reconnect
             connect();
