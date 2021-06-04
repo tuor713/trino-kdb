@@ -1,5 +1,7 @@
 package org.uwh.trino.kdb;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
@@ -22,12 +24,14 @@ public class KDBMetadata implements ConnectorMetadata {
     private final StatsManager stats;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private final Map<String,String> tableMetadataCache = new HashMap<>();
+    private final Cache<String,List<ColumnMetadata>> columnMetadataCache;
 
     public KDBMetadata(KDBClient client, Config config, StatsManager stats) {
         this.client = client;
         this.useStats = config.useStats();
         this.stats = stats;
         executor.scheduleAtFixedRate(this::refreshMetadata, 0, config.getMetadataRefreshInterval(), TimeUnit.SECONDS);
+        columnMetadataCache = CacheBuilder.newBuilder().expireAfterWrite(config.getMetadataRefreshInterval(), TimeUnit.SECONDS).build();
     }
 
     private void refreshMetadata() {
@@ -37,6 +41,17 @@ public class KDBMetadata implements ConnectorMetadata {
             });
         } catch (Exception e) {
             LOGGER.warn(e, "Failed to refresh KDB metadata from instance: " + client.getHost() + ":" + client.getPort());
+        }
+    }
+
+    private List<ColumnMetadata> getColumns(KDBTableHandle handle) {
+        try {
+            return columnMetadataCache.get(handle.getTableName(), () -> {
+                return client.getTableMeta(handle);
+            });
+        } catch (ExecutionException e) {
+            LOGGER.error("Could not retrieve metadata for table "+handle.getTableName());
+            throw new RuntimeException(e);
         }
     }
 
@@ -72,7 +87,7 @@ public class KDBMetadata implements ConnectorMetadata {
         ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
         for (SchemaTableName tableName : listTables(session, prefix)) {
             try {
-                columns.put(tableName, client.getTableMeta(tableName.getTableName()));
+                columns.put(tableName, getColumns((KDBTableHandle) getTableHandle(session, tableName)));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -128,7 +143,7 @@ public class KDBMetadata implements ConnectorMetadata {
     public ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle table) {
         KDBTableHandle handle = (KDBTableHandle) table;
         try {
-            List<ColumnMetadata> columns = client.getTableMeta(handle.getTableName());
+            List<ColumnMetadata> columns = getColumns(handle);
             return new ConnectorTableMetadata(new SchemaTableName(handle.getSchemaName(), handle.getTableName()), columns);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -150,7 +165,7 @@ public class KDBMetadata implements ConnectorMetadata {
         ImmutableMap.Builder<String,ColumnHandle> builder = ImmutableMap.builder();
         KDBTableHandle handle = (KDBTableHandle) tableHandle;
         try {
-            List<ColumnMetadata> columns = client.getTableMeta(handle.getTableName());
+            List<ColumnMetadata> columns = getColumns(handle);
             columns.forEach(col -> builder.put(col.getName(),
                     new KDBColumnHandle(
                             // use the original capitalization

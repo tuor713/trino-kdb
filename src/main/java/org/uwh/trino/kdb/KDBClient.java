@@ -58,6 +58,7 @@ public class KDBClient {
 
     private Object exec(String expr) throws Exception {
         try {
+            LOGGER.info("KDB query: "+expr);
             return connection.k(expr);
         // SocketException & EOFEXception
         } catch (IOException e) {
@@ -96,10 +97,10 @@ public class KDBClient {
         return new KDBTableHandle(schema, name, TupleDomain.all(), OptionalLong.empty(), isPartitioned, partitionColumn, partitions);
     }
 
-    public List<ColumnMetadata> getTableMeta(String name) throws Exception {
-        boolean isPartitioned = isPartitioned(name);
+    public List<ColumnMetadata> getTableMeta(KDBTableHandle handle) throws Exception {
+        boolean isPartitioned = handle.isPartitioned();
 
-        c.Dict res = (c.Dict) exec("meta "+name);
+        c.Dict res = (c.Dict) exec("meta "+handle.getTableName());
         c.Flip columns = (c.Flip) res.x;
         c.Flip colMeta = (c.Flip) res.y;
         String[] colNames = (String[]) columns.y[0];
@@ -264,7 +265,6 @@ public class KDBClient {
             query = "select [" + pageSize + "] from " + query;
         }
 
-        LOGGER.info("KDB query: "+query);
         c.Flip res = (c.Flip) exec(query);
 
         PageBuilder builder = new PageBuilder(columns.stream().map(col -> col.getType()).collect(Collectors.toList()));
@@ -282,7 +282,7 @@ public class KDBClient {
         LOGGER.info("Collecting statistics for table " + table.getSchemaName() + "." + table.getTableName());
         long rows = (long) exec("count " + table.getTableName());
 
-        List<ColumnMetadata> columnMetadata = getTableMeta(table.getTableName());
+        List<ColumnMetadata> columnMetadata = getTableMeta(table);
         String colQuery;
         if (table.isPartitioned()) {
             KDBColumnHandle parCol = table.getPartitionColumn().get();
