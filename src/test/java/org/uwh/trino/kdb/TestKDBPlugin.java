@@ -16,6 +16,8 @@ import org.testng.annotations.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Handler;
@@ -212,6 +214,23 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         List list = (List) res.getMaterializedRows().get(0).getField(0);
         assertNull(list.get(1));
     }
+
+    @Test
+    public void testTimeTypes() {
+        query("select * from \"([] t: (23:55:00.000; 23:59:59.000))\"",2);
+        assertResultColumn(0, Set.of(LocalTime.of(23,55,00), LocalTime.of(23,59,59)));
+
+        query("select * from \"([] t: (2021.05.31\\T23:55:00; 2021.06.01\\T01:00:00))\"", 2);
+        assertResultColumn(0, Set.of(
+                LocalDateTime.of(2021,5,31, 23,55,00),
+                LocalDateTime.of(2021, 6,1, 1,0,0)));
+
+        query("select * from \"([] t: (2021.05.31\\D23:55:00; 2021.06.01\\D01:00:00))\"", 2);
+        assertResultColumn(0, Set.of(
+                LocalDateTime.of(2021,5,31, 23,55,00),
+                LocalDateTime.of(2021, 6,1, 1,0,0)));
+    }
+
 
     @Test
     public void testFilterOrdering() {

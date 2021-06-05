@@ -9,6 +9,7 @@ import kx.c;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.TimeZone;
 import java.util.UUID;
 
 public enum KDBType {
@@ -114,7 +115,8 @@ public enum KDBType {
             if (c.NULL[12].equals(ts)) {
                 bb.appendNull();
             } else {
-                TimestampType.TIMESTAMP_MICROS.writeLong(bb, ts.getTime() * 1000 + ts.getNanos() / 1000);
+                // Undo KDB timezone adjustment
+                TimestampType.TIMESTAMP_MICROS.writeLong(bb, lg(ts.getTime()) * 1000 + ts.getNanos() / 1000);
             }
         }
     }),
@@ -144,7 +146,8 @@ public enum KDBType {
             if (c.NULL[15].equals(ts)) {
                 bb.appendNull();
             } else {
-                TimestampType.TIMESTAMP_MILLIS.writeLong(bb, ts.getTime() * 1000);
+                // Undo KDB timezone adjustment to convert back into UTC 'local' time
+                TimestampType.TIMESTAMP_MILLIS.writeLong(bb, lg(ts.getTime()) * 1000);
             }
         }
     }),
@@ -184,7 +187,8 @@ public enum KDBType {
             if (c.NULL[19].equals(time)) {
                 bb.appendNull();
             } else {
-                TimeType.TIME_MILLIS.writeLong(bb, time.getTime() * 1_000_000_000L);
+                // undo KDB time zone adjustment
+                TimeType.TIME_MILLIS.writeLong(bb, lg(time.getTime()) * 1_000_000_000L);
             }
         }
     }),
@@ -215,6 +219,14 @@ public enum KDBType {
 
     public void writeBlock(BlockBuilder bb, Object values) {
         writer.write(bb, values);
+    }
+
+    private static final TimeZone tz=TimeZone.getDefault();
+    static long getTzOffset(long x){
+        return tz.getOffset(x);
+    }
+    static long lg(long x){
+        return x+getTzOffset(x);
     }
 
     private static void writeArray(KDBType inner, BlockBuilder bb, Object values, Object nullMarker) {
