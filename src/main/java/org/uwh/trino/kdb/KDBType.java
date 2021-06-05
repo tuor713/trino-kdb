@@ -18,7 +18,7 @@ public enum KDBType {
             BooleanType.BOOLEAN.writeBoolean(bb, b);
         }
     }),
-    BooleanArray('B', new ArrayType(BooleanType.BOOLEAN), (bb, values) -> { writeArray(KDBType.Boolean, bb, values, null); }),
+    BooleanArray('B', new ArrayType(BooleanType.BOOLEAN), (bb, values) -> { writeArray(KDBType.Boolean, bb, values); }),
     GUID('g', UuidType.UUID, (bb, values) -> {
         for (UUID uuid : (UUID[]) values) {
             if (!uuid.equals(c.NULL[2])) {
@@ -31,15 +31,13 @@ public enum KDBType {
             }
         }
     }),
-    GUIDArray('G', new ArrayType(UuidType.UUID), (bb, values) -> {
-        writeArray(KDBType.GUID, bb, values, c.NULL[2]);
-    }),
+    GUIDArray('G', new ArrayType(UuidType.UUID), (bb, values) -> { writeArray(KDBType.GUID, bb, values); }),
     Byte('x', TinyintType.TINYINT, (bb, values) -> {
         for (byte b : (byte[]) values) {
             TinyintType.TINYINT.writeLong(bb, b);
         }
     }),
-    ByteArray('X', new ArrayType(TinyintType.TINYINT), (bb, values) -> { writeArray(KDBType.Byte, bb, values, null); }),
+    ByteArray('X', new ArrayType(TinyintType.TINYINT), (bb, values) -> { writeArray(KDBType.Byte, bb, values); }),
     Short('h', SmallintType.SMALLINT, (bb, values) -> {
         for (short s: (short[]) values) {
             if (s == java.lang.Short.MIN_VALUE)  {
@@ -49,7 +47,7 @@ public enum KDBType {
             }
         }
     }),
-    ShortArray('H', new ArrayType(SmallintType.SMALLINT), (bb, values) -> { writeArray(KDBType.Short, bb, values, java.lang.Short.MIN_VALUE); }),
+    ShortArray('H', new ArrayType(SmallintType.SMALLINT), (bb, values) -> { writeArray(KDBType.Short, bb, values); }),
     Int('i', IntegerType.INTEGER, (bb, values) -> {
         for (int i : (int[]) values) {
             if (i == Integer.MIN_VALUE) {
@@ -59,7 +57,7 @@ public enum KDBType {
             }
         }
     }),
-    IntArray('I', new ArrayType(IntegerType.INTEGER), (bb, values) -> { writeArray(KDBType.Int, bb, values, Integer.MIN_VALUE); }),
+    IntArray('I', new ArrayType(IntegerType.INTEGER), (bb, values) -> { writeArray(KDBType.Int, bb, values); }),
     Long('j', BigintType.BIGINT, (bb, values) -> {
         for (long l : (long[]) values) {
             if (l == java.lang.Long.MIN_VALUE) {
@@ -69,7 +67,7 @@ public enum KDBType {
             }
         }
     }),
-    LongArray('J', new ArrayType(BigintType.BIGINT), (bb, values) -> { writeArray(KDBType.Long, bb, values, java.lang.Long.MIN_VALUE); }),
+    LongArray('J', new ArrayType(BigintType.BIGINT), (bb, values) -> { writeArray(KDBType.Long, bb, values); }),
     Real('e', DoubleType.DOUBLE, (bb, values) -> {
         for (float f : (float[]) values) {
             if (c.NULL[8].equals(f)) {
@@ -79,7 +77,7 @@ public enum KDBType {
             }
         }
     }),
-    RealArray('E', new ArrayType(DoubleType.DOUBLE), (bb, values) -> { writeArray(KDBType.Real, bb, values, c.NULL[8]); }),
+    RealArray('E', new ArrayType(DoubleType.DOUBLE), (bb, values) -> { writeArray(KDBType.Real, bb, values); }),
     Float('f', DoubleType.DOUBLE, (bb, values) -> {
         for (double d : (double[]) values) {
             if (Double.isNaN(d)) {
@@ -89,7 +87,7 @@ public enum KDBType {
             }
         }
     }),
-    FloatArray('F', new ArrayType(DoubleType.DOUBLE), (bb, values) -> { writeArray(KDBType.Float, bb, values, c.NULL[9]); }),
+    FloatArray('F', new ArrayType(DoubleType.DOUBLE), (bb, values) -> { writeArray(KDBType.Float, bb, values); }),
     Char('c', Constants.CHAR_TYPE, (bb, values) -> {
         for (char c : (char[]) values) {
             Constants.CHAR_TYPE.writeString(bb, java.lang.String.valueOf(c));
@@ -109,7 +107,7 @@ public enum KDBType {
             }
         }
     }),
-    SymbolArray('S', new ArrayType(VarcharType.VARCHAR), (bb, values) -> { writeArray(KDBType.Symbol, bb, values, c.NULL[11]); }),
+    SymbolArray('S', new ArrayType(VarcharType.VARCHAR), (bb, values) -> { writeArray(KDBType.Symbol, bb, values); }),
     Timestamp('p', TimestampType.TIMESTAMP_MICROS, (bb, values) -> {
         for (java.sql.Timestamp ts :(java.sql.Timestamp[]) values) {
             if (c.NULL[12].equals(ts)) {
@@ -120,7 +118,7 @@ public enum KDBType {
             }
         }
     }),
-    TimestampArray('P', new ArrayType(TimestampType.TIMESTAMP_MICROS), (bb, values) -> { writeArray(KDBType.Timestamp, bb, values, c.NULL[12]); }),
+    TimestampArray('P', new ArrayType(TimestampType.TIMESTAMP_MICROS), (bb, values) -> { writeArray(KDBType.Timestamp, bb, values); }),
     Month('m', VarcharType.createVarcharType(10), (bb, values) -> {
         for (c.Month m : (c.Month[]) values) {
             if (c.NULL[13].equals(m)) {
@@ -130,7 +128,7 @@ public enum KDBType {
             }
         }
     }),
-    MonthArray('M', new ArrayType(VarcharType.createVarcharType(10)), (bb, values) -> { writeArray(KDBType.Month, bb, values, c.NULL[13]); }),
+    MonthArray('M', new ArrayType(VarcharType.createVarcharType(10)), (bb, values) -> { writeArray(KDBType.Month, bb, values); }),
     Date('d', DateType.DATE, (bb, values) -> {
         for (java.sql.Date d : (java.sql.Date[]) values) {
             if (d.equals(c.NULL[14])) {
@@ -140,7 +138,7 @@ public enum KDBType {
             }
         }
     }),
-    DateArray('D', new ArrayType(DateType.DATE), (bb, values) -> { writeArray(KDBType.Date, bb, values, c.NULL[14]); }),
+    DateArray('D', new ArrayType(DateType.DATE), (bb, values) -> { writeArray(KDBType.Date, bb, values); }),
     DateTime('z', TimestampType.TIMESTAMP_MILLIS, (bb, values) -> {
         for (java.util.Date ts :(java.util.Date[]) values) {
             if (c.NULL[15].equals(ts)) {
@@ -151,7 +149,7 @@ public enum KDBType {
             }
         }
     }),
-    DateTimeArray('Z', new ArrayType(TimestampType.TIMESTAMP_MILLIS), (bb, values) -> { writeArray(KDBType.DateTime, bb, values, c.NULL[15]); }),
+    DateTimeArray('Z', new ArrayType(TimestampType.TIMESTAMP_MILLIS), (bb, values) -> { writeArray(KDBType.DateTime, bb, values); }),
     TimeSpan('n', VarcharType.VARCHAR, (bb, values) -> {
         for (c.Timespan ts : (c.Timespan[]) values) {
             if (c.NULL[16].equals(ts)) {
@@ -161,7 +159,7 @@ public enum KDBType {
             }
         }
     }),
-    TimeSpanArray('N', new ArrayType(VarcharType.VARCHAR), (bb, values) -> { writeArray(KDBType.TimeSpan, bb, values, c.NULL[16]); }),
+    TimeSpanArray('N', new ArrayType(VarcharType.VARCHAR), (bb, values) -> { writeArray(KDBType.TimeSpan, bb, values); }),
     Minute('u', TimeType.TIME_SECONDS, (bb, values) -> {
         for (c.Minute m : (c.Minute[]) values) {
             if (c.NULL[17].equals(m)) {
@@ -171,7 +169,7 @@ public enum KDBType {
             }
         }
     }),
-    MinuteArray('U', new ArrayType(TimeType.TIME_SECONDS), (bb, values) -> { writeArray(KDBType.Minute, bb, values, c.NULL[17]); }),
+    MinuteArray('U', new ArrayType(TimeType.TIME_SECONDS), (bb, values) -> { writeArray(KDBType.Minute, bb, values); }),
     Second('v', TimeType.TIME_SECONDS, (bb, values) -> {
         for (c.Second s : (c.Second[]) values) {
             if (c.NULL[18].equals(s)) {
@@ -181,7 +179,7 @@ public enum KDBType {
             }
         }
     }),
-    SecondArray('V', new ArrayType(TimeType.TIME_SECONDS), (bb, values) -> { writeArray(KDBType.Second, bb, values, c.NULL[18]); }),
+    SecondArray('V', new ArrayType(TimeType.TIME_SECONDS), (bb, values) -> { writeArray(KDBType.Second, bb, values); }),
     Time('t', TimeType.TIME_MILLIS, (bb, values) -> {
         for (java.sql.Time time : (java.sql.Time[]) values) {
             if (c.NULL[19].equals(time)) {
@@ -192,7 +190,7 @@ public enum KDBType {
             }
         }
     }),
-    TimeArray('T', new ArrayType(TimeType.TIME_MILLIS), (bb, values) -> { writeArray(KDBType.Time, bb, values, c.NULL[19]); });
+    TimeArray('T', new ArrayType(TimeType.TIME_MILLIS), (bb, values) -> { writeArray(KDBType.Time, bb, values); });
 
     @FunctionalInterface
     public interface BlockWriter {
@@ -229,15 +227,11 @@ public enum KDBType {
         return x+getTzOffset(x);
     }
 
-    private static void writeArray(KDBType inner, BlockBuilder bb, Object values, Object nullMarker) {
+    private static void writeArray(KDBType inner, BlockBuilder bb, Object values) {
         for (Object ls: (Object[]) values) {
-            if (ls.equals(nullMarker)) {
-                bb.appendNull();
-            } else {
-                BlockBuilder sub = bb.beginBlockEntry();
-                inner.writeBlock(sub, ls);
-                bb.closeEntry();
-            }
+            BlockBuilder sub = bb.beginBlockEntry();
+            inner.writeBlock(sub, ls);
+            bb.closeEntry();
         }
     }
 
