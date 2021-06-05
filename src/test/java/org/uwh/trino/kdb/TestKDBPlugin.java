@@ -15,6 +15,7 @@ import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Handler;
@@ -173,6 +174,43 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
 
         query("select dates, symbols from btable where dates BETWEEN DATE '2000-01-01' AND DATE '2000-01-03'", 2);
         assertLastQuery("select [50000] from select symbols, dates from btable where dates within 2000.01.01 2000.01.03");
+    }
+
+    @Test
+    public void testNullHandling() {
+        query("select * from \"([] ds:(2021.05.30; 0nd; 2021.05.31))\"",3);
+        List<MaterializedRow> rows = res.getMaterializedRows();
+        assertEquals(rows.get(0).getField(0), LocalDate.of(2021,5,30));
+        assertNull(rows.get(1).getField(0));
+        assertEquals(rows.get(2).getField(0), LocalDate.of(2021,5,31));
+
+        query("select * from \"([] " +
+                        "type_g:(0Ng; 0x0 sv 16?0xff); " +
+                        "type_h: (0Nh; 1h); " +
+                        "type_i: (0Ni; 1i); " +
+                        "type_j: (0Nj; 1j); " +
+                        "type_e: (0Ne; 1.0e); " +
+                        "type_f: (0Nf; 1.0); " +
+                        "type_s: ``abc; " +
+                        "type_p: (0Np; `timestamp$1); " +
+                        "type_m: (0Nm; 2020.01m); " +
+                        "type_d: (0Nd; 2020.01.01); " +
+                        "type_z: (0Nz; .z.z); " +
+                        "type_n: (0Nn; `timespan$1); " +
+                        "type_u: (0Nu; `minute$1); " +
+                        "type_v: (0Nv; `second$1); " +
+                        "type_t: (0Nt; `time$1)" +
+                        ")\"",
+                2);
+        rows = res.getMaterializedRows();
+        for (int i=0; i<rows.get(0).getFieldCount(); i++) {
+            assertNull(rows.get(0).getField(i));
+            assertNotNull(rows.get(1).getField(i));
+        }
+
+        query("select * from \"([] dates:(2021.05.31 0Nd; 2021.01.01 2021.01.02))\"", 2);
+        List list = (List) res.getMaterializedRows().get(0).getField(0);
+        assertNull(list.get(1));
     }
 
     @Test

@@ -6,7 +6,7 @@
 
     <groupId>org.uwh</groupId>
     <artifactId>trino-kdb-plugin</artifactId>
-    <version>0.0.4</version>
+    <version>0.0.5-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
