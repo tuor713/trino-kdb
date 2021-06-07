@@ -2,11 +2,11 @@ package org.uwh.trino.kdb;
 
 import io.trino.metadata.TableHandle;
 import io.trino.spi.connector.*;
+import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.testing.TestingConnectorSession;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.testng.annotations.*;
 
 import java.util.List;
 import java.util.Map;
@@ -14,8 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
 public class TestKDBMetadata {
     @BeforeClass
@@ -32,6 +31,12 @@ public class TestKDBMetadata {
         session = TestingConnectorSession.builder().build();
         KDBClient client = new KDBClient("localhost", 8000, "user", "password");
         sut = new KDBMetadata(client, new Config(Map.of(Config.KDB_USE_STATS_KEY, "true")), new StatsManager(client));
+    }
+
+    @AfterMethod
+    public void teardown() throws Exception {
+        kx.c connection = new kx.c("localhost", 8000, "user:password");
+        connection.k("delete stats from `.trino");
     }
 
     @Test
@@ -78,6 +83,42 @@ public class TestKDBMetadata {
         metadata = new KDBMetadata(client, new Config(Map.of(Config.KDB_USE_STATS_KEY, "true")), new StatsManager(client));
         stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
+    }
+
+    @Test
+    public void testPreGeneratedTableStats() throws Exception {
+        kx.c connection = new kx.c("localhost", 8000, "user:password");
+        connection.k(".trino.stats:([table:`atable`btable] rowcount:10000 20000)");
+        connection.k(".trino.colstats:([table:`atable`atable; column:`name`iq] distinct_count:10000 5000; null_fraction: 0.0 0.0; size: 40000 80000; min_value: 0n 50.0; max_value: 0n 300.0)");
+
+        KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "atable"));
+        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+
+        assertEquals(stats.getRowCount().getValue(), 10000.0, 0.1);
+        Map<String, ColumnStatistics> colStats = stats.getColumnStatistics().entrySet().stream().collect(Collectors.toMap(e -> ((KDBColumnHandle) e.getKey()).getName(), e -> e.getValue()));
+
+        ColumnStatistics cstats = colStats.get("name");
+        assertEquals(cstats.getNullsFraction().getValue(), 0.0, 0.01);
+        assertEquals(cstats.getDistinctValuesCount().getValue(), 10000.0, 0.01);
+        assertEquals(cstats.getDataSize().getValue(), 40000.0, 0.1);
+        assertTrue(cstats.getRange().isEmpty());
+
+        cstats = colStats.get("iq");
+        assertEquals(cstats.getNullsFraction().getValue(), 0.0, 0.01);
+        assertEquals(cstats.getDistinctValuesCount().getValue(), 5000.0, 0.01);
+        assertEquals(cstats.getDataSize().getValue(), 80000.0, 0.1);
+        assertEquals(cstats.getRange().get().getMin(), 50.0, 0.1);
+        assertEquals(cstats.getRange().get().getMax(), 300.0, 0.1);
+    }
+
+    @Test
+    public void testPreGeneratedTableStatsDontExist() throws Exception {
+        kx.c connection = new kx.c("localhost", 8000, "user:password");
+        connection.k(".trino.stats:([table:`atable`btable] rowcount:10000 20000)");
+
+        KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "ctable"));
+        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+        assertEquals(stats.getRowCount().getValue(), 1000000.0, 0.1);
     }
 
     @Test

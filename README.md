@@ -33,6 +33,22 @@ Settings that can be used in catalog file:
 | use.stats | _(Optional)_ Calculate stats for KDB tables, on the fly and cached in memory (default: true) |
 | kdb.metadata.refresh.interval.seconds | _(Optional)_ Refresh interval, in seconds, for KDB metadata (default: 3600 = 1 hour) |
 
+### Pre-Generated Stats
+
+Stats generation is still quite raw and can take extremely long for partitioned tables. As an alternatives stats can 
+be precomputed and stored in two tables:
+
+```q
+.trino.stats:([table: `symbol$()] rowcount: `long$())
+
+.trino.colstats:([table: `symbol$(); column: `symbol$()] 
+  distinct_count: `long$(); 
+  null_fraction: `double$();
+  size: `long$()`; 
+  min_value: `double$();
+  max_value: `double$())
+```
+
 ### Building
 
 This library depends on javakdb, which can be built from [GitHub](https://github.com/KxSystems/javakdb). To build:

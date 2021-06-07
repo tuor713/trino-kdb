@@ -12,6 +12,7 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.ColumnStatistics;
+import io.trino.spi.statistics.DoubleRange;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.BigintType;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class KDBClient {
@@ -278,8 +280,57 @@ public class KDBClient {
         return builder.build();
     }
 
+    private Optional<TableStatistics> getPregeneratedStats(KDBTableHandle table) throws Exception {
+        boolean hasStats = (boolean) exec("`stats in key `.trino");
+        if (!hasStats) {
+            return Optional.empty();
+        }
+
+        long[] rows = (long[]) exec("exec rowcount from .trino.stats where table = `" + table.getTableName());
+        if (rows.length == 0) {
+            // No pre-generated stats for this table
+            return Optional.empty();
+        }
+
+        TableStatistics.Builder builder = TableStatistics.builder().setRowCount(Estimate.of(rows[0]));
+
+        Map<String,ColumnMetadata> colMap = getTableMeta(table).stream().collect(Collectors.toMap(ColumnMetadata::getName, Function.identity()));
+        c.Flip colMeta = (c.Flip) exec("select column, distinct_count, null_fraction, size, min_value, max_value from .trino.colstats where table = `" + table.getTableName());
+        String[] columns = (String[]) colMeta.y[0];
+        long[] distinctCounts = (long[]) colMeta.y[1];
+        double[] nullFractions = (double[]) colMeta.y[2];
+        long[] sizes = (long[]) colMeta.y[3];
+        double[] mins = (double[]) colMeta.y[4];
+        double[] maxs = (double[]) colMeta.y[5];
+
+        for (int i=0; i<columns.length; i++) {
+            ColumnMetadata meta = colMap.get(columns[i]);
+            if (meta != null) {
+                builder.setColumnStatistics(
+                        columnMetaToHandle(meta),
+                        new ColumnStatistics(
+                                Estimate.of(nullFractions[i]),
+                                Estimate.of(distinctCounts[i]),
+                                Estimate.of(sizes[i]),
+                                (Double.isNaN(mins[i]) || Double.isNaN(maxs[i]))
+                                        ? Optional.empty()
+                                        : Optional.of(new DoubleRange(mins[i], maxs[i]))
+                        )
+                );
+            }
+        }
+
+        return Optional.of(builder.build());
+    }
+
     public TableStatistics getTableStatistics(KDBTableHandle table) throws Exception {
         LOGGER.info("Collecting statistics for table " + table.getSchemaName() + "." + table.getTableName());
+
+        Optional<TableStatistics> preGeneratedStats = getPregeneratedStats(table);
+        if (preGeneratedStats.isPresent()) {
+            return preGeneratedStats.get();
+        }
+
         long rows = (long) exec("count " + table.getTableName());
 
         List<ColumnMetadata> columnMetadata = getTableMeta(table);
@@ -313,13 +364,21 @@ public class KDBClient {
 
         Map<ColumnHandle, ColumnStatistics> stats = new HashMap<>();
         for (int i=0; i<columns.length; i++) {
-            ColumnMetadata meta = columnMetadata.get(i);
             stats.put(
-                    new KDBColumnHandle(meta.getName(), meta.getType(), (KDBType) meta.getProperties().get("kdb.type"), (Optional<KDBAttribute>) meta.getProperties().get("kdb.attribute"), (boolean) meta.getProperties().get("kdb.isPartitionColumn")),
+                    columnMetaToHandle(columnMetadata.get(i)),
                     new ColumnStatistics(Estimate.of((double) nullCounts[i] / rows), Estimate.of(distinctCounts[i]), Estimate.of(sizes[i]), Optional.empty()));
         }
 
         return new TableStatistics(Estimate.of(rows), stats);
+    }
+
+    public static KDBColumnHandle columnMetaToHandle(ColumnMetadata meta) {
+        return new KDBColumnHandle(
+                meta.getName(),
+                meta.getType(),
+                (KDBType) meta.getProperties().get("kdb.type"),
+                (Optional<KDBAttribute>) meta.getProperties().get("kdb.attribute"),
+                (boolean) meta.getProperties().get("kdb.isPartitionColumn"));
     }
 
     private int getArrayLength(Type t, Object array) {
