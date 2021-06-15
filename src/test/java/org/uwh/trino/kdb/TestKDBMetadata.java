@@ -28,6 +28,8 @@ public class TestKDBMetadata {
 
     @BeforeTest
     public void setup() throws Exception {
+        kx.c connection = new kx.c("localhost", 8000, "user:password");
+        connection.k(".trino.touch:1");
         session = TestingConnectorSession.builder().build();
         KDBClient client = new KDBClient("localhost", 8000, "user", "password");
         sut = new KDBMetadata(client, new Config(Map.of(Config.KDB_USE_STATS_KEY, "true")), new StatsManager(client));
@@ -70,6 +72,15 @@ public class TestKDBMetadata {
         assertTrue(columns.get("date").isPartitionColumn());
         assertTrue(handle.isPartitioned());
         assertEquals(handle.getPartitions(), List.of("2021.05.28", "2021.05.29", "2021.05.30", "2021.05.31"));
+    }
+
+    @Test
+    public void testTableWithEmptyType() {
+        KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "([] a: 1 2 3; b: (`a; 1; 2021.01.01))"));
+        Map<String, KDBColumnHandle> columns = (Map) sut.getColumnHandles(session, handle);
+
+        assertEquals(columns.size(), 2);
+        assertEquals(columns.values().stream().map(c -> c.getKdbType()).collect(Collectors.toSet()), Set.of(KDBType.Long, KDBType.Unknown));
     }
 
     @Test

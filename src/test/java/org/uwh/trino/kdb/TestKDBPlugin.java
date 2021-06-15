@@ -127,6 +127,12 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         assertResultColumn(0, Set.of(10L, 20L, 30L));
     }
 
+    @Test
+    public void testTableWithUnknownType() {
+        query("select * from \"([] a: 1 2 3; b: (`a; 1; 2021.01.01))\"", 3);
+        assertResultColumn(1, Set.of("a", "1", "2021-01-01"));
+    }
+
 
     @Test
     public void testFilterPushdown() {

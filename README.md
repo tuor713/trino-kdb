@@ -19,6 +19,10 @@ The plugin currently supports:
 - Basic schema introspection
 - Limited filter and limit pass through
 
+#### Fine Print
+
+- KDB columns of unknown type `()` will be mapped to VARCHAR and converted with `Object#toString`.
+
 ### Configuration Options
 
 Settings that can be used in catalog file:

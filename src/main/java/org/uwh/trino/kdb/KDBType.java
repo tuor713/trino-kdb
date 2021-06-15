@@ -190,7 +190,13 @@ public enum KDBType {
             }
         }
     }),
-    TimeArray('T', new ArrayType(TimeType.TIME_MILLIS), (bb, values) -> { writeArray(KDBType.Time, bb, values); });
+    TimeArray('T', new ArrayType(TimeType.TIME_MILLIS), (bb, values) -> { writeArray(KDBType.Time, bb, values); }),
+
+    Unknown(' ', VarcharType.VARCHAR, (bb, values) -> {
+        for (Object o : (Object[]) values) {
+            VarcharType.VARCHAR.writeString(bb, o.toString());
+        }
+    });
 
     @FunctionalInterface
     public interface BlockWriter {
