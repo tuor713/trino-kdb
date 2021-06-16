@@ -138,4 +138,11 @@ public class TestKDBMetadata {
         TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
         assertEquals(stats.getRowCount().getValue(), 12.0, 0.1);
     }
+
+    @Test
+    public void testNoStatsForPassThroughQuery() {
+        KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "([] a:1 2 3)"));
+        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+        assertTrue(stats.getRowCount().isUnknown());
+    }
 }

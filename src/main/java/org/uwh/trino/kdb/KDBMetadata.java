@@ -216,12 +216,14 @@ public class KDBMetadata implements ConnectorMetadata {
 
     @Override
     public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint) {
-        if (!useStats) {
+        KDBTableHandle khandle = (KDBTableHandle) handle;
+
+        if (!useStats || khandle.isQuery()) {
             return TableStatistics.empty();
         }
 
         try {
-            return stats.getTableStats((KDBTableHandle) handle);
+            return stats.getTableStats(khandle);
         } catch (Exception e) {
             return TableStatistics.empty();
         }
