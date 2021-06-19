@@ -27,7 +27,7 @@ public class KDBConnector implements Connector {
 
     @Override
     public List<PropertyMetadata<?>> getSessionProperties() {
-        return Config.getSessionProperties();
+        return config.getSessionProperties();
     }
 
     @Override

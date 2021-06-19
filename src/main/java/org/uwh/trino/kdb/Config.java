@@ -24,17 +24,19 @@ public class Config {
     public static final String DEFAULT_PUSH_DOWN_AGGREGATION = "true";
     public static final String SESSION_PUSH_DOWN_AGGREGATION = "push_down_aggregation";
 
-    public static List<PropertyMetadata<?>> getSessionProperties() {
-        return List.of(
-                PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", true, false)
-        );
-    }
 
     private final Map<String,String> config;
 
     public Config(Map<String,String> config) {
         this.config = config;
     }
+
+    public List<PropertyMetadata<?>> getSessionProperties() {
+        return List.of(
+                PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", pushDownAggregation(), false)
+        );
+    }
+
 
     public String getHost() {
         return config.get(KDB_HOST_KEY);
