@@ -4,8 +4,11 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.Var;
 import io.airlift.log.Logger;
 import io.trino.spi.connector.*;
+import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.TableStatistics;
 
@@ -21,6 +24,7 @@ public class KDBMetadata implements ConnectorMetadata {
     private static final String SCHEMA_NAME = "default";
     private final KDBClient client;
     private final boolean useStats;
+    private final boolean pushDownAggregation;
     private final StatsManager stats;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private final Map<String,String> tableMetadataCache = new HashMap<>();
@@ -30,6 +34,7 @@ public class KDBMetadata implements ConnectorMetadata {
         this.client = client;
         this.useStats = config.useStats();
         this.stats = stats;
+        this.pushDownAggregation = config.pushDownAggregation();
         executor.scheduleAtFixedRate(this::refreshMetadata, 0, config.getMetadataRefreshInterval(), TimeUnit.SECONDS);
         columnMetadataCache = CacheBuilder.newBuilder().expireAfterWrite(config.getMetadataRefreshInterval(), TimeUnit.SECONDS).build();
     }
@@ -211,7 +216,96 @@ public class KDBMetadata implements ConnectorMetadata {
 
         KDBTableHandle newHandle = new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions());
 
-        return Optional.of(new ConstraintApplicationResult<>(newHandle, constraint.getSummary()));
+        return Optional.of(new ConstraintApplicationResult<>(newHandle, TupleDomain.all()));
+    }
+
+    private static final Set<String> supported_functions = Set.of("count", "sum");
+
+    @Override
+    public Optional<AggregationApplicationResult<ConnectorTableHandle>> applyAggregation(ConnectorSession session, ConnectorTableHandle ihandle, List<AggregateFunction> aggregates, Map<String, ColumnHandle> assignments, List<List<ColumnHandle>> groupingSets) {
+        if (!pushDownAggregation) {
+            return Optional.empty();
+        }
+
+        KDBTableHandle handle = (KDBTableHandle) ihandle;
+
+        if (!aggregates.stream().allMatch(agg -> supported_functions.contains(agg.getFunctionName()))) {
+            return Optional.empty();
+        }
+
+        // Only support single grouping set
+        if (groupingSets.size() != 1) {
+            return Optional.empty();
+        }
+
+        List<ConnectorExpression> projections = new ArrayList<>();
+        StringBuilder newQuery = new StringBuilder();
+        newQuery.append("select ");
+        for (int i=0; i<aggregates.size(); i++) {
+            if (i>0) {
+                newQuery.append(", ");
+            }
+            newQuery.append("col").append(i).append(": ");
+            AggregateFunction func = aggregates.get(i);
+
+            // not supported yet
+            if (func.isDistinct()) {
+                return Optional.empty();
+            }
+
+            newQuery.append(func.getFunctionName()).append(" ");
+
+            projections.add(new Variable("col"+i, func.getOutputType()));
+
+            if (func.getInputs().size() == 0) {
+                // count(*) use case
+                newQuery.append("i");
+            } else if (func.getInputs().size() == 1) {
+                ConnectorExpression expr = func.getInputs().get(0);
+                if (expr instanceof Variable) {
+                    Variable var = (Variable) expr;
+                    newQuery.append(var.getName());
+                } else {
+                    return Optional.empty();
+                }
+            } else {
+                // can't handle multiple args
+                return Optional.empty();
+            }
+        }
+
+        if (aggregates.isEmpty()) {
+            newQuery.append("count i");
+        }
+
+        List<KDBColumnHandle> grouping = (List) groupingSets.get(0);
+
+        if (!grouping.isEmpty()) {
+            newQuery.append(" by ");
+            newQuery.append(grouping.stream().map(h -> h.getName()).collect(Collectors.joining(", ")));
+        }
+
+        newQuery.append(" from ").append(handle.getTableName());
+
+        if (!handle.getConstraint().isAll()) {
+            newQuery.append(" where ");
+            newQuery.append(KDBClient.constructFilters(handle.getConstraint()));
+        }
+
+        AggregationApplicationResult<ConnectorTableHandle> result = new AggregationApplicationResult<>(
+                new KDBTableHandle(SCHEMA_NAME, newQuery.toString(), TupleDomain.all(), OptionalLong.empty(), false, Optional.empty(), List.of()),
+                projections,
+                projections.stream().map(v -> {
+                    Variable var = (Variable) v;
+                    return new Assignment(
+                            var.getName(),
+                            new KDBColumnHandle(var.getName(), var.getType(), KDBType.fromTrinoType(var.getType()), Optional.empty(), false),
+                            var.getType());
+                }).collect(Collectors.toList()),
+                Map.of()
+        );
+
+        return Optional.of(result);
     }
 
     @Override

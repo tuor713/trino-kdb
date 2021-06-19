@@ -17,6 +17,9 @@ public class Config {
     public static final String KDB_METADATA_REFRESH_INTERVAL = "kdb.metadata.refresh.interval.seconds";
     public static final String DEFAULT_METADATA_REFRESH_INTERVAL = String.valueOf(60*60); // 1 hour
 
+    public static final String KDB_PUSH_DOWN_AGGREGATION = "push.down.aggregation";
+    public static final String DEFAULT_PUSH_DOWN_AGGREGATION = "true";
+
     private final Map<String,String> config;
 
     public Config(Map<String,String> config) {
@@ -45,6 +48,10 @@ public class Config {
 
     public boolean useStats() {
         return Boolean.parseBoolean(config.getOrDefault(KDB_USE_STATS_KEY, DEFAULT_USE_STATS));
+    }
+
+    public boolean pushDownAggregation() {
+        return Boolean.parseBoolean(config.getOrDefault(KDB_PUSH_DOWN_AGGREGATION, DEFAULT_PUSH_DOWN_AGGREGATION));
     }
 
     public int getMetadataRefreshInterval() {

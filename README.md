@@ -18,6 +18,7 @@ The plugin currently supports:
   - Inside dynamic queries upper case letters must be escaped as \\\<letter> since Trino converts all "table names" to lower case
 - Basic schema introspection
 - Limited filter and limit pass through
+- Aggregation push down for count, sum
 
 #### Fine Print
 
@@ -36,6 +37,7 @@ Settings that can be used in catalog file:
 | page.size | _(Optional)_ Size of pages (in number of rows) retrieved from KDB (default: 50,000) |
 | use.stats | _(Optional)_ Calculate stats for KDB tables, on the fly and cached in memory (default: true) |
 | kdb.metadata.refresh.interval.seconds | _(Optional)_ Refresh interval, in seconds, for KDB metadata (default: 3600 = 1 hour) |
+| push.down.aggregation | _(Optional)_ Enable aggregation push down (default: true) |
 
 ### Pre-Generated Stats
 

@@ -84,6 +84,9 @@ public class KDBTableHandle implements ConnectorTableHandle {
                 ", tableName='" + tableName + '\'' +
                 ", constraint=" + constraint +
                 ", limit=" + limit +
+                ", isPartitioned=" + isPartitioned +
+                ", partitions=" + partitions +
+                ", partitionColumn=" + partitionColumn +
                 '}';
     }
 }

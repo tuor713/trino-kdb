@@ -136,7 +136,7 @@ public class KDBClient {
         return ImmutableList.copyOf(result);
     }
 
-    private String formatKDBValue(KDBType type, Object value) {
+    private static String formatKDBValue(KDBType type, Object value) {
         if (type == KDBType.String) {
             String s = ((Slice) value).toStringUtf8();
             if (s.length() < 2) {
@@ -155,7 +155,7 @@ public class KDBClient {
         }
     }
 
-    private String constructFilter(KDBColumnHandle column, Domain domain) {
+    private static String constructFilter(KDBColumnHandle column, Domain domain) {
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
         for (Range range : domain.getValues().getRanges().getOrderedRanges()) {
@@ -200,7 +200,7 @@ public class KDBClient {
         }
     }
 
-    private int columnFilterPriority(KDBColumnHandle col) {
+    private static int columnFilterPriority(KDBColumnHandle col) {
         // top priority to partition column of partitioned tables
         if (col.isPartitionColumn()) return -5;
         // prefer attributes against any columns with attributes
@@ -212,7 +212,7 @@ public class KDBClient {
         return 0;
     }
 
-    private String constructFilters(TupleDomain<ColumnHandle> domain) {
+    public static String constructFilters(TupleDomain<ColumnHandle> domain) {
         if (domain.isAll() || domain.getDomains().isEmpty()) {
             return null;
         }

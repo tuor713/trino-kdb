@@ -244,4 +244,14 @@ public enum KDBType {
     public static KDBType fromTypeCode(char c) {
         return Arrays.stream(KDBType.values()).filter(t -> t.getTypeCode() == c).findFirst().orElseThrow(() -> new UnsupportedOperationException("Type " + c + " is not implemented"));
     }
+
+    public static KDBType fromTrinoType(Type type) {
+        if (type == BigintType.BIGINT) {
+            return KDBType.Long;
+        } else if (type == DoubleType.DOUBLE) {
+            return KDBType.Float;
+        } else {
+            throw new IllegalArgumentException("Type conversion not implemented for "+type);
+        }
+    }
 }
