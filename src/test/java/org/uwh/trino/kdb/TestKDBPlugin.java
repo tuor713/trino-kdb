@@ -97,6 +97,29 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     }
 
     @Test
+    public void testKDBDownDoesNotStopCatalogCreation() throws Exception {
+        DistributedQueryRunner qrunner = DistributedQueryRunner.builder(createSession("default"))
+                .setNodeCount(1)
+                .setExtraProperties(ImmutableMap.of())
+                .build();
+
+        qrunner.installPlugin(new KDBPlugin());
+        qrunner.createCatalog("kdb", "kdb",
+                ImmutableMap.<String,String>builder()
+                        .put("kdb.host", "localhost")
+                        .put("kdb.port", "12345")
+                        .build());
+
+        // only throw exception once operation is invoked
+        try {
+            qrunner.execute(createSession("default"), "show tables");
+            fail();
+        } catch (Exception e) {
+            LOGGER.info(e.toString());
+        }
+    }
+
+    @Test
     public void testQuery() {
         query("select * from atable", 3);
         assertLastQuery("select [50000] from select name, iq from atable");

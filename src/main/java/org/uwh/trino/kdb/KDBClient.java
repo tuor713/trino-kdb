@@ -32,14 +32,13 @@ public class KDBClient {
     private final int port;
     private final String user;
     private final String password;
-    private kx.c connection;
+    private kx.c connection = null;
 
     public KDBClient(String host, int port, String user, String password) throws Exception {
         this.host = host;
         this.port = port;
         this.user = user;
         this.password = password;
-        connect();
     }
 
     public String getHost() {
@@ -59,6 +58,10 @@ public class KDBClient {
     }
 
     private Object exec(String expr) throws Exception {
+        if (connection == null) {
+            connect();
+        }
+
         try {
             LOGGER.info("KDB query: "+expr);
             return connection.k(expr);
