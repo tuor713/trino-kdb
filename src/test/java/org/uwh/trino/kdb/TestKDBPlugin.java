@@ -125,7 +125,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testPagination() {
         query("select linear from ctable limit 120000", 120000);
-        assertLastQuery("select [100000 50000] from select linear from ctable where i<120000");
+        assertLastQuery("select [100000 20000] from select linear from ctable where i<120000");
     }
 
     @Test
@@ -233,7 +233,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select sym, sum(num) from (select * from \"([] sym: `a`a`a; num: 2 3 4)\" limit 2) t group by sym", 1);
         assertResultColumn(1, Set.of(5L));
         // currently due to the limit statement not being marked as 100% reliable aggregation is not pushed down to KDB
-        assertLastQuery("select [50000] from select sym, num from (([] sym: `a`a`a; num: 2 3 4)) where i<2");
+        assertLastQuery("select [2] from select sym, num from (([] sym: `a`a`a; num: 2 3 4)) where i<2");
     }
 
     @Test
@@ -335,13 +335,18 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testLimit() {
         query("select * from atable limit 2", 2);
-        assertLastQuery("select [50000] from select name, iq from atable where i<2");
+        assertLastQuery("select [2] from select name, iq from atable where i<2");
 
         query("select const, linear from ctable where const = 1 limit 10", 10);
-        assertLastQuery("select [50000] from 10#select const, linear from ctable where const = 1");
+        assertLastQuery("select [10] from select const, linear from ctable where const = 1");
 
         query("select * from \"select from atable\" limit 2", 2);
-        assertLastQuery("select [50000] from select name, iq from (select from atable) where i<2");
+        assertLastQuery("select [2] from select name, iq from (select from atable) where i<2");
+
+        // test limit greater than matching rows
+        query("select name from atable where iq < 100 limit 10", 2);
+        assertResultColumn(0, Set.of("Dent", "Beeblebrox"));
+        assertLastQuery("select [10] from select name from atable where iq < 100");
     }
 
     @Test

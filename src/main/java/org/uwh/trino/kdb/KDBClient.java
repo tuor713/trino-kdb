@@ -254,20 +254,21 @@ public class KDBClient {
                 + " from " + (handle.isQuery() ? ("("+table+")") : table);
         if (filter != null) {
             query += " where " + filter;
-            if (handle.getLimit().isPresent()) {
-                query = handle.getLimit().getAsLong() + "#" + query;
-            }
         } else {
+            // optimization to limit directly on row index
             if (handle.getLimit().isPresent()) {
                 query += " where i<" + handle.getLimit().getAsLong();
             }
         }
 
-        // Pagination
-        if (page > 0) {
-            query = "select [" + (page*pageSize) + " " + pageSize + "] from " + query;
+        // Pagination & Limits
+        long startIndex = page*pageSize;
+        long endIndex = Math.min((page+1)*pageSize, handle.getLimit().orElse(Long.MAX_VALUE));
+
+        if (startIndex > 0) {
+            query = "select [" + startIndex + " " + (endIndex-startIndex) + "] from " + query;
         } else {
-            query = "select [" + pageSize + "] from " + query;
+            query = "select [" + endIndex + "] from " + query;
         }
 
         c.Flip res = (c.Flip) exec(query);
