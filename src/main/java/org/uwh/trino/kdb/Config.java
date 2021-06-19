@@ -1,5 +1,8 @@
 package org.uwh.trino.kdb;
 
+import io.trino.spi.session.PropertyMetadata;
+
+import java.util.List;
 import java.util.Map;
 
 public class Config {
@@ -19,6 +22,13 @@ public class Config {
 
     public static final String KDB_PUSH_DOWN_AGGREGATION = "push.down.aggregation";
     public static final String DEFAULT_PUSH_DOWN_AGGREGATION = "true";
+    public static final String SESSION_PUSH_DOWN_AGGREGATION = "push_down_aggregation";
+
+    public static List<PropertyMetadata<?>> getSessionProperties() {
+        return List.of(
+                PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", true, false)
+        );
+    }
 
     private final Map<String,String> config;
 

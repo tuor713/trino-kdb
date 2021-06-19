@@ -1,8 +1,10 @@
 package org.uwh.trino.kdb;
 
 import io.trino.spi.connector.*;
+import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
+import java.util.List;
 import java.util.Optional;
 
 public class KDBConnector implements Connector {
@@ -21,6 +23,11 @@ public class KDBConnector implements Connector {
         this.config = config;
         this.statsManager = new StatsManager(client);
         this.metadata = new KDBMetadata(client, config, statsManager);
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getSessionProperties() {
+        return Config.getSessionProperties();
     }
 
     @Override

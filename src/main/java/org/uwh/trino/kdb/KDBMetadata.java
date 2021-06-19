@@ -223,7 +223,7 @@ public class KDBMetadata implements ConnectorMetadata {
 
     @Override
     public Optional<AggregationApplicationResult<ConnectorTableHandle>> applyAggregation(ConnectorSession session, ConnectorTableHandle ihandle, List<AggregateFunction> aggregates, Map<String, ColumnHandle> assignments, List<List<ColumnHandle>> groupingSets) {
-        if (!pushDownAggregation) {
+        if (!pushDownAggregation || !session.getProperty(Config.SESSION_PUSH_DOWN_AGGREGATION, Boolean.class)) {
             return Optional.empty();
         }
 

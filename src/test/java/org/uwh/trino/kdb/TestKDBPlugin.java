@@ -237,6 +237,13 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     }
 
     @Test
+    public void testSessionPushDownAggregationOverride() {
+        Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "push_down_aggregation", "false").build();
+        query(session, "select count(*) from atable");
+        assertLastQuery("select [50000] from select i from atable");
+    }
+
+    @Test
     public void testDescribe() {
         query("describe atable", 2);
         assertResultColumn(0, Set.of("name","iq"));
