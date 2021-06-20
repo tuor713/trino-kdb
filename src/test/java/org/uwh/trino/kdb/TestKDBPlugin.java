@@ -232,8 +232,11 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         // aggregation with nested limit
         query("select sym, sum(num) from (select * from \"([] sym: `a`a`a; num: 2 3 4)\" limit 2) t group by sym", 1);
         assertResultColumn(1, Set.of(5L));
-        // currently due to the limit statement not being marked as 100% reliable aggregation is not pushed down to KDB
-        assertLastQuery("select [2] from select sym, num from (([] sym: `a`a`a; num: 2 3 4)) where i<2");
+        assertLastQuery("select [50000] from select sym, col0 from (select col0: sum num by sym from ([] sym: `a`a`a; num: 2 3 4) where i<2)");
+
+        query("select sym, sum(num) from (select * from \"([] sym: `a`a`a; sym2: `a`b`b; num: 2 3 4)\" where sym2 = 'b' limit 1) t group by sym", 1);
+        assertResultColumn(1, Set.of(3L));
+        assertLastQuery("select [50000] from select sym, col0 from (select col0: sum num by sym from (select [1] from ([] sym: `a`a`a; sym2: `a`b`b; num: 2 3 4) where sym2 = `b))");
     }
 
     @Test

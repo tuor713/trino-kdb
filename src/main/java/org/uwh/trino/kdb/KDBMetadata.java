@@ -198,7 +198,8 @@ public class KDBMetadata implements ConnectorMetadata {
 
         return Optional.of(new LimitApplicationResult<>(
                 new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions()),
-                false
+                // for partitioned table since partitions are limited individually the limit is not guaranteed
+                !khandle.isPartitioned()
         ));
     }
 
@@ -282,11 +283,25 @@ public class KDBMetadata implements ConnectorMetadata {
             newQuery.append(grouping.stream().map(h -> h.getName()).collect(Collectors.joining(", ")));
         }
 
-        newQuery.append(" from ").append(handle.getTableName());
+        newQuery.append(" from ");
 
-        if (!handle.getConstraint().isAll()) {
-            newQuery.append(" where ");
-            newQuery.append(KDBClient.constructFilters(handle.getConstraint()));
+        // limit and constraint
+        if (handle.getLimit().isPresent() && !handle.getConstraint().isAll()) {
+            newQuery.append("(select [")
+                    .append(handle.getLimit().getAsLong())
+                    .append("] from ")
+                    .append(handle.getTableName())
+                    .append(" where ")
+                    .append(KDBClient.constructFilters(handle.getConstraint()))
+                    .append(")");
+        } else {
+            newQuery.append(handle.getTableName());
+            if (!handle.getConstraint().isAll()) {
+                newQuery.append(" where ");
+                newQuery.append(KDBClient.constructFilters(handle.getConstraint()));
+            } else if (handle.getLimit().isPresent()) {
+                newQuery.append(" where i<").append(handle.getLimit().getAsLong());
+            }
         }
 
         AggregationApplicationResult<ConnectorTableHandle> result = new AggregationApplicationResult<>(
