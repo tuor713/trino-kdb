@@ -285,23 +285,14 @@ public class KDBMetadata implements ConnectorMetadata {
 
         newQuery.append(" from ");
 
-        // limit and constraint
+        // limit and constraint -> need to construct a sub-query before running aggregation
         if (handle.getLimit().isPresent() && !handle.getConstraint().isAll()) {
-            newQuery.append("(select [")
-                    .append(handle.getLimit().getAsLong())
-                    .append("] from ")
-                    .append(handle.getTableName())
-                    .append(" where ")
-                    .append(KDBClient.constructFilters(handle.getConstraint()))
+            newQuery.append("(")
+                    .append(handle.toQuery(Collections.emptyList(), OptionalInt.empty(), 50000))
                     .append(")");
         } else {
-            newQuery.append(handle.getTableName());
-            if (!handle.getConstraint().isAll()) {
-                newQuery.append(" where ");
-                newQuery.append(KDBClient.constructFilters(handle.getConstraint()));
-            } else if (handle.getLimit().isPresent()) {
-                newQuery.append(" where i<").append(handle.getLimit().getAsLong());
-            }
+            newQuery.append(handle.getTableNameQuery());
+            handle.getWhereClause().ifPresent(s -> newQuery.append(" where ").append(s));
         }
 
         AggregationApplicationResult<ConnectorTableHandle> result = new AggregationApplicationResult<>(

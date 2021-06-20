@@ -118,14 +118,14 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testQuery() {
         query("select * from atable", 3);
-        assertLastQuery("select [50000] from select name, iq from atable");
+        assertLastQuery("select [50000] name, iq from atable");
         assertResultColumn(0, Set.of("Dent", "Beeblebrox", "Prefect"));
     }
 
     @Test
     public void testPagination() {
         query("select linear from ctable limit 120000", 120000);
-        assertLastQuery("select [100000 20000] from select linear from ctable where i<120000");
+        assertLastQuery("select [100000 20000] linear from ctable where i<120000");
     }
 
     @Test
@@ -140,14 +140,14 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testPassThroughQuery() {
         query("select * from kdb.default.\"select max iq from atable\"", 1);
-        assertLastQuery("select [50000] from select iq from (select max iq from atable)");
+        assertLastQuery("select [50000] iq from (select max iq from atable)");
         assertEquals(res.getOnlyColumnAsSet(), Set.of(126L));
     }
 
     @Test
     public void testSplayTableQuery() {
         query("select * from splay_table", 3);
-        assertLastQuery("select [50000] from select v1, v2 from splay_table");
+        assertLastQuery("select [50000] v1, v2 from splay_table");
         assertResultColumn(0, Set.of(10L, 20L, 30L));
     }
 
@@ -161,28 +161,28 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testFilterPushdown() {
         query("select * from atable where iq > 50", 2);
-        assertLastQuery("select [50000] from select name, iq from atable where iq > 50");
+        assertLastQuery("select [50000] name, iq from atable where iq > 50");
         assertResultColumn(0, Set.of("Dent", "Prefect"));
     }
 
     @Test
     public void testFilterPushdownMultiple() {
         query("select * from atable where iq > 50 and iq < 100", 1);
-        assertLastQuery("select [50000] from select name, iq from atable where (iq > 50) & (iq < 100)");
+        assertLastQuery("select [50000] name, iq from atable where (iq > 50) & (iq < 100)");
         assertResultColumn(0, Set.of("Dent"));
     }
 
     @Test
     public void testFilterPushdownSymbol() {
         query("select * from atable where name = 'Dent'", 1);
-        assertLastQuery("select [50000] from select name, iq from atable where name = `Dent");
+        assertLastQuery("select [50000] name, iq from atable where name = `Dent");
         assertResultColumn(0, Set.of("Dent"));
     }
 
     @Test
     public void testFilterWithAttributes() {
         query("select * from \"([] id:`s#0 1 2; name:`alice`bob`charlie; age:28 35 28)\" where age = 28 and id = 0", 1);
-        assertLastQuery("select [50000] from select id, name, age from (([] id:`s#0 1 2; name:`alice`bob`charlie; age:28 35 28)) where id = 0, age = 28");
+        assertLastQuery("select [50000] id, name, age from ([] id:`s#0 1 2; name:`alice`bob`charlie; age:28 35 28) where id = 0, age = 28");
     }
 
     @Test
@@ -190,39 +190,39 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         // count(*)
         query("select count(*) from atable", 1);
         assertResultColumn(0, Set.of(3L));
-        assertLastQuery("select [50000] from select col0 from (select col0: count i from atable)");
+        assertLastQuery("select [50000] col0 from (select col0: count i from atable)");
 
         // sum(_)
         query("select sum(iq) from atable", 1);
         assertResultColumn(0, Set.of(98L+42L+126L));
-        assertLastQuery("select [50000] from select col0 from (select col0: sum iq from atable)");
+        assertLastQuery("select [50000] col0 from (select col0: sum iq from atable)");
 
         // sum(_) and count(*)
         query("select sum(iq), count(*) from atable", 1);
         assertResultColumn(0, Set.of(98L+42L+126L));
         assertResultColumn(1, Set.of(3L));
-        assertLastQuery("select [50000] from select col0, col1 from (select col0: sum iq, col1: count i from atable)");
+        assertLastQuery("select [50000] col0, col1 from (select col0: sum iq, col1: count i from atable)");
 
         // count(distinct)
         query("select count(distinct sym) from \"([] sym: `a`a`b)\"", 1);
         assertResultColumn(0, Set.of(2L));
-        assertLastQuery("select [50000] from select col0 from (select col0: count sym from select count i by sym from ([] sym: `a`a`b))");
+        assertLastQuery("select [50000] col0 from (select col0: count sym from (select count i by sym from ([] sym: `a`a`b)))");
 
         // count(distinct) #2
         query("select sym, count(distinct sym2) from \"([] sym: `a`a`b`b; sym2: `a`b`c`c)\" group by sym", 2);
         assertResultColumn(1, Set.of(1L, 2L));
-        assertLastQuery("select [50000] from select sym, col0 from (select col0: count sym2 by sym from select count i by sym, sym2 from ([] sym: `a`a`b`b; sym2: `a`b`c`c))");
+        assertLastQuery("select [50000] sym, col0 from (select col0: count sym2 by sym from (select count i by sym, sym2 from ([] sym: `a`a`b`b; sym2: `a`b`c`c)))");
 
         // sum group by
         query("select sym, sum(num) from \"([] sym: `a`a`b; num: 2 3 4)\" group by sym", 2);
         assertResultColumn(0, Set.of("a","b"));
         assertResultColumn(1, Set.of(5L, 4L));
-        assertLastQuery("select [50000] from select sym, col0 from (select col0: sum num by sym from ([] sym: `a`a`b; num: 2 3 4))");
+        assertLastQuery("select [50000] sym, col0 from (select col0: sum num by sym from ([] sym: `a`a`b; num: 2 3 4))");
 
         // sum group by multiple
         query("select sym, sym2, sum(num) from \"([] sym: `a`a`b`b; sym2: `a`a`b`c; num: 2 3 4 6)\" group by sym, sym2", 3);
         assertResultColumn(2, Set.of(5L, 4L, 6L));
-        assertLastQuery("select [50000] from select sym, sym2, col0 from (select col0: sum num by sym, sym2 from ([] sym: `a`a`b`b; sym2: `a`a`b`c; num: 2 3 4 6))");
+        assertLastQuery("select [50000] sym, sym2, col0 from (select col0: sum num by sym, sym2 from ([] sym: `a`a`b`b; sym2: `a`a`b`c; num: 2 3 4 6))");
 
         // aggregation with filter
         query("select sym, sum(num) from \"([] sym: `a`a`b`b; sym2: `a`b`a`b; num: 2 3 4 5)\" where sym2 = 'a' group by sym", 2);
@@ -232,18 +232,18 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         // aggregation with nested limit
         query("select sym, sum(num) from (select * from \"([] sym: `a`a`a; num: 2 3 4)\" limit 2) t group by sym", 1);
         assertResultColumn(1, Set.of(5L));
-        assertLastQuery("select [50000] from select sym, col0 from (select col0: sum num by sym from ([] sym: `a`a`a; num: 2 3 4) where i<2)");
+        assertLastQuery("select [50000] sym, col0 from (select col0: sum num by sym from ([] sym: `a`a`a; num: 2 3 4) where i<2)");
 
         query("select sym, sum(num) from (select * from \"([] sym: `a`a`a; sym2: `a`b`b; num: 2 3 4)\" where sym2 = 'b' limit 1) t group by sym", 1);
         assertResultColumn(1, Set.of(3L));
-        assertLastQuery("select [50000] from select sym, col0 from (select col0: sum num by sym from (select [1] from ([] sym: `a`a`a; sym2: `a`b`b; num: 2 3 4) where sym2 = `b))");
+        assertLastQuery("select [50000] sym, col0 from (select col0: sum num by sym from (select [1] from ([] sym: `a`a`a; sym2: `a`b`b; num: 2 3 4) where sym2 = `b))");
     }
 
     @Test
     public void testSessionPushDownAggregationOverride() {
         Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "push_down_aggregation", "false").build();
         query(session, "select count(*) from atable");
-        assertLastQuery("select [50000] from select i from atable");
+        assertLastQuery("select [50000] i from atable");
     }
 
     @Test
@@ -257,16 +257,16 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select * from btable", 3);
 
         query("select strings, symbols from btable where strings = 'hello'", 1);
-        assertLastQuery("select [50000] from select strings, symbols from btable where strings like \"hello\"");
+        assertLastQuery("select [50000] strings, symbols from btable where strings like \"hello\"");
 
         query("select strings, symbols from btable where strings = 'h'", 0);
-        assertLastQuery("select [50000] from select strings, symbols from btable where strings like (enlist \"h\")");
+        assertLastQuery("select [50000] strings, symbols from btable where strings like (enlist \"h\")");
 
         query("select dates, symbols from btable where dates = DATE '2000-01-02'", 1);
-        assertLastQuery("select [50000] from select symbols, dates from btable where dates = 2000.01.02");
+        assertLastQuery("select [50000] symbols, dates from btable where dates = 2000.01.02");
 
         query("select dates, symbols from btable where dates BETWEEN DATE '2000-01-01' AND DATE '2000-01-03'", 2);
-        assertLastQuery("select [50000] from select symbols, dates from btable where dates within 2000.01.01 2000.01.03");
+        assertLastQuery("select [50000] symbols, dates from btable where dates within 2000.01.01 2000.01.03");
     }
 
     @Test
@@ -326,7 +326,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testFilterOrdering() {
         query("select count(*) from ctable where s = 'trino' and sym = 'trino'", 1);
-        assertLastQuery("select [50000] from select col0 from (select col0: count i from ctable where sym = `trino, s like \"trino\")");
+        assertLastQuery("select [50000] col0 from (select col0: count i from ctable where sym = `trino, s like \"trino\")");
     }
 
     @Test
@@ -345,18 +345,18 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testLimit() {
         query("select * from atable limit 2", 2);
-        assertLastQuery("select [2] from select name, iq from atable where i<2");
+        assertLastQuery("select [2] name, iq from atable where i<2");
 
         query("select const, linear from ctable where const = 1 limit 10", 10);
-        assertLastQuery("select [10] from select const, linear from ctable where const = 1");
+        assertLastQuery("select [10] const, linear from ctable where const = 1");
 
         query("select * from \"select from atable\" limit 2", 2);
-        assertLastQuery("select [2] from select name, iq from (select from atable) where i<2");
+        assertLastQuery("select [2] name, iq from (select from atable) where i<2");
 
         // test limit greater than matching rows
         query("select name from atable where iq < 100 limit 10", 2);
         assertResultColumn(0, Set.of("Dent", "Beeblebrox"));
-        assertLastQuery("select [10] from select name from atable where iq < 100");
+        assertLastQuery("select [10] name from atable where iq < 100");
     }
 
     @Test
