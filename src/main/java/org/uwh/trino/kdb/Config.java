@@ -16,6 +16,7 @@ public class Config {
 
     public static final String KDB_USE_STATS_KEY = "use.stats";
     public static final String DEFAULT_USE_STATS = "true";
+    public static final String SESSION_USE_STATS = "use_stats";
 
     public static final String KDB_METADATA_REFRESH_INTERVAL = "kdb.metadata.refresh.interval.seconds";
     public static final String DEFAULT_METADATA_REFRESH_INTERVAL = String.valueOf(60*60); // 1 hour
@@ -33,7 +34,8 @@ public class Config {
 
     public List<PropertyMetadata<?>> getSessionProperties() {
         return List.of(
-                PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", pushDownAggregation(), false)
+                PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", pushDownAggregation(), false),
+                PropertyMetadata.booleanProperty(SESSION_USE_STATS, "Use statistics", useStats(), false)
         );
     }
 

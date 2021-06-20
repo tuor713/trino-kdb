@@ -44,6 +44,7 @@ Settings that can be used in catalog file:
 | Property | Default |
 | -------- | ------- |
 | `push_down_aggregation` | Catalog property `push.down.aggregation` |
+| `use_stats` | Catalog property `use.stats` |
 
 ### Pre-Generated Stats
 

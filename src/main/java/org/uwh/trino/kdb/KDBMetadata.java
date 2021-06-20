@@ -4,7 +4,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.errorprone.annotations.Var;
 import io.airlift.log.Logger;
 import io.trino.spi.connector.*;
 import io.trino.spi.expression.ConnectorExpression;
@@ -24,7 +23,6 @@ public class KDBMetadata implements ConnectorMetadata {
     private static final String SCHEMA_NAME = "default";
     private final KDBClient client;
     private final boolean useStats;
-    private final boolean pushDownAggregation;
     private final StatsManager stats;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private final Map<String,String> tableMetadataCache = new HashMap<>();
@@ -34,7 +32,6 @@ public class KDBMetadata implements ConnectorMetadata {
         this.client = client;
         this.useStats = config.useStats();
         this.stats = stats;
-        this.pushDownAggregation = config.pushDownAggregation();
         executor.scheduleAtFixedRate(this::refreshMetadata, 0, config.getMetadataRefreshInterval(), TimeUnit.SECONDS);
         columnMetadataCache = CacheBuilder.newBuilder().expireAfterWrite(config.getMetadataRefreshInterval(), TimeUnit.SECONDS).build();
     }
@@ -223,7 +220,7 @@ public class KDBMetadata implements ConnectorMetadata {
 
     @Override
     public Optional<AggregationApplicationResult<ConnectorTableHandle>> applyAggregation(ConnectorSession session, ConnectorTableHandle ihandle, List<AggregateFunction> aggregates, Map<String, ColumnHandle> assignments, List<List<ColumnHandle>> groupingSets) {
-        if (!pushDownAggregation || !session.getProperty(Config.SESSION_PUSH_DOWN_AGGREGATION, Boolean.class)) {
+        if (!session.getProperty(Config.SESSION_PUSH_DOWN_AGGREGATION, Boolean.class)) {
             return Optional.empty();
         }
 
@@ -312,7 +309,7 @@ public class KDBMetadata implements ConnectorMetadata {
     public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint) {
         KDBTableHandle khandle = (KDBTableHandle) handle;
 
-        if (!useStats || khandle.isQuery()) {
+        if (!session.getProperty(Config.SESSION_USE_STATS, Boolean.class) || khandle.isQuery()) {
             return TableStatistics.empty();
         }
 
