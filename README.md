@@ -18,7 +18,7 @@ The plugin currently supports:
   - Inside dynamic queries upper case letters must be escaped as \\\<letter> since Trino converts all "table names" to lower case
 - Basic schema introspection
 - Limited filter and limit pass through
-- Aggregation push down for count, sum
+- Aggregation push down for count, sum, max, min, stddev, variance, count_if, bool_and, bool_or
 
 #### Fine Print
 

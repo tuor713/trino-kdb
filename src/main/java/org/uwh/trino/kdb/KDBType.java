@@ -250,6 +250,8 @@ public enum KDBType {
             return KDBType.Long;
         } else if (type == DoubleType.DOUBLE) {
             return KDBType.Float;
+        } else if (type == BooleanType.BOOLEAN) {
+            return KDBType.Boolean;
         } else {
             throw new IllegalArgumentException("Type conversion not implemented for "+type);
         }

@@ -217,7 +217,23 @@ public class KDBMetadata implements ConnectorMetadata {
         return Optional.of(new ConstraintApplicationResult<>(newHandle, TupleDomain.all()));
     }
 
-    private static final Set<String> supported_functions = Set.of("count", "sum");
+    private static final Map<String,String> supported_functions = ImmutableMap.<String,String>builder()
+            .putAll(Map.of(
+                    "count", "count",
+                    "sum", "sum",
+                    "avg", "avg",
+                    "max", "max",
+                    "min", "min",
+                    "stddev", "sdev",
+                    "stddev_pop", "dev",
+                    "variance", "svar",
+                    "var_pop", "var",
+                    "bool_and", "all"))
+            .putAll(Map.of(
+                    "bool_or", "any",
+                    "count_if", "sum `long$"
+            ))
+            .build();
 
     @Override
     public Optional<AggregationApplicationResult<ConnectorTableHandle>> applyAggregation(ConnectorSession session, ConnectorTableHandle ihandle, List<AggregateFunction> aggregates, Map<String, ColumnHandle> assignments, List<List<ColumnHandle>> groupingSets) {
@@ -227,7 +243,7 @@ public class KDBMetadata implements ConnectorMetadata {
 
         KDBTableHandle handle = (KDBTableHandle) ihandle;
 
-        if (!aggregates.stream().allMatch(agg -> supported_functions.contains(agg.getFunctionName()))) {
+        if (!aggregates.stream().allMatch(agg -> supported_functions.containsKey(agg.getFunctionName()))) {
             return Optional.empty();
         }
 
@@ -251,7 +267,7 @@ public class KDBMetadata implements ConnectorMetadata {
                 return Optional.empty();
             }
 
-            newQuery.append(func.getFunctionName()).append(" ");
+            newQuery.append(supported_functions.get(func.getFunctionName())).append(" ");
 
             projections.add(new Variable("col"+i, func.getOutputType()));
 

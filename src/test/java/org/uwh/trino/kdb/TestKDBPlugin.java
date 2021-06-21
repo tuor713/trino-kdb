@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -240,6 +241,45 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     }
 
     @Test
+    public void aggregation_functions() {
+        Session noPushdownSession = Session.builder(getSession()).setCatalogSessionProperty("kdb", "push_down_aggregation", "false").build();
+
+        Map<String,String> expectedQueries = ImmutableMap.<String,String>builder()
+                .putAll(Map.of(
+                        "select avg(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: avg num from ([] num: 1 2 3 4 0n))",
+                        "select max(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: max num from ([] num: 1 2 3 4 0n))",
+                        "select min(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: min num from ([] num: 1 2 3 4 0n))",
+                        "select stddev(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: sdev num from ([] num: 1 2 3 4 0n))",
+                        "select stddev_samp(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: sdev num from ([] num: 1 2 3 4 0n))",
+                        "select stddev_pop(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: dev num from ([] num: 1 2 3 4 0n))",
+                        "select variance(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: svar num from ([] num: 1 2 3 4 0n))",
+                        "select var_samp(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: svar num from ([] num: 1 2 3 4 0n))",
+                        "select var_pop(num) from \"([] num: 1 2 3 4 0N)\"", "select [50000] col0 from (select col0: var num from ([] num: 1 2 3 4 0n))"))
+                .putAll(Map.of(
+                        "select every(b) from \"([] b: 110b)\"", "select [50000] col0 from (select col0: all b from ([] b: 110b))",
+                        "select bool_and(b) from \"([] b: 110b)\"", "select [50000] col0 from (select col0: all b from ([] b: 110b))",
+                        "select bool_or(b) from \"([] b: 110b)\"", "select [50000] col0 from (select col0: any b from ([] b: 110b))",
+                        "select count_if(b) from \"([] b: 110b)\"", "select [50000] col0 from (select col0: sum `long$ b from ([] b: 110b))"
+                )).build();
+
+        for (Map.Entry<String,String> e : expectedQueries.entrySet()) {
+            query(noPushdownSession, e.getKey(), 1);
+            Object expected = res.getOnlyValue();
+            String trinoQuery = lastQuery;
+
+            query(e.getKey(), 1);
+
+            if (expected instanceof Double) {
+                assertEquals((double) expected, (double) res.getOnlyValue(), 0.01);
+            } else {
+                assertEquals(expected, res.getOnlyValue());
+            }
+            assertLastQuery(e.getValue());
+            assertNotEquals(trinoQuery, lastQuery);
+        }
+    }
+
+    @Test
     public void testSessionPushDownAggregationOverride() {
         Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "push_down_aggregation", "false").build();
         query(session, "select count(*) from atable");
@@ -410,6 +450,16 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
 
     private void query(String sql, int expected) {
         res = computeActual(sql);
+        if (res.getRowCount() < 100) {
+            LOGGER.info("Query results: " + res);
+        } else {
+            LOGGER.info("Query results: " + res.getRowCount() + " rows");
+        }
+        assertEquals(res.getRowCount(), expected);
+    }
+
+    private void query(Session session, String sql, int expected) {
+        res = computeActual(session, sql);
         if (res.getRowCount() < 100) {
             LOGGER.info("Query results: " + res);
         } else {
