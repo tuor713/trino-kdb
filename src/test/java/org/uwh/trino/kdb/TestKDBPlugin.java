@@ -127,6 +127,10 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     public void testPagination() {
         query("select linear from ctable limit 120000", 120000);
         assertLastQuery("select [100000 20000] linear from ctable where i<120000");
+
+        Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "page_size", "70000").build();
+        query(session, "select linear from ctable limit 120000", 120000);
+        assertLastQuery("select [70000 50000] linear from ctable where i<120000");
     }
 
     @Test

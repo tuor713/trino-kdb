@@ -45,6 +45,7 @@ Settings that can be used in catalog file:
 | -------- | ------- |
 | `push_down_aggregation` | Catalog property `push.down.aggregation` |
 | `use_stats` | Catalog property `use.stats` |
+| `page_size` | Catalog property `page.size` |
 
 ### Pre-Generated Stats
 

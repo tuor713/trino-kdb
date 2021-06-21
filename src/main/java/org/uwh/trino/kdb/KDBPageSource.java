@@ -11,19 +11,17 @@ public class KDBPageSource implements ConnectorPageSource {
     private List<KDBColumnHandle> columns;
     private boolean finished = false;
     private final KDBClient client;
-    private final Config config;
     private final int pageSize;
     private int currentPage = 0;
 
     private long completedBytes = 0;
     private long readTimeNanos = 0;
 
-    public KDBPageSource(KDBClient client, Config config, KDBTableHandle table, List<KDBColumnHandle> columns) {
+    public KDBPageSource(KDBClient client, KDBTableHandle table, List<KDBColumnHandle> columns, int pageSize) {
         this.table = table;
         this.columns = columns;
         this.client = client;
-        this.config = config;
-        this.pageSize = config.getPageSize();
+        this.pageSize = pageSize;
     }
 
     @Override

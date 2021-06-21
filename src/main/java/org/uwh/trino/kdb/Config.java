@@ -13,6 +13,7 @@ public class Config {
 
     public static final String KDB_PAGE_SIZE = "page.size";
     public static final String DEFAULT_PAGE_SIZE = "50000";
+    public static final String SESSION_PAGE_SIZE = "page_size";
 
     public static final String KDB_USE_STATS_KEY = "use.stats";
     public static final String DEFAULT_USE_STATS = "true";
@@ -35,7 +36,8 @@ public class Config {
     public List<PropertyMetadata<?>> getSessionProperties() {
         return List.of(
                 PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", pushDownAggregation(), false),
-                PropertyMetadata.booleanProperty(SESSION_USE_STATS, "Use statistics", useStats(), false)
+                PropertyMetadata.booleanProperty(SESSION_USE_STATS, "Use statistics", useStats(), false),
+                PropertyMetadata.integerProperty(SESSION_PAGE_SIZE, "Page size for sourcing KDB data in rows", getPageSize(), false)
         );
     }
 
