@@ -35,7 +35,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("dtable:([] num:1 2 3; num_array: (1 2 3; 3 4 5; 6 7 8))");
         conn.k("keyed_table:([name:`Dent`Beeblebrox`Prefect] iq:98 42 126)");
         conn.k("attribute_table:([] unique_col: `u#`a`b`c; sorted_col: `s#1 2 3; parted_col: `p#1 1 2; grouped_col: `g#`a`b`c; plain_col: 1 2 3)");
-        conn.k("CaseSensitiveTable:([] Number: 1 2 3 4; Square: 1 4 9 16)");
+        conn.k("CaseSensitiveTable:([] Symbol: `a`a`b`b; Number: 1 2 3 4; Square: 1 4 9 16)");
 
         conn.k("tfunc:{[] atable}");
         Path tempp = Files.createTempDirectory("splay");
@@ -281,6 +281,13 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
             assertLastQuery(e.getValue());
             assertNotEquals(trinoQuery, lastQuery);
         }
+    }
+
+    @Test
+    public void aggregation_with_upper_case_columns() {
+        query("select Symbol, sum(Number) from CaseSensitiveTable group by Symbol", 2);
+        assertResultColumn(0, Set.of("a", "b"));
+        assertResultColumn(1, Set.of(3L, 7L));
     }
 
     @Test

@@ -278,7 +278,11 @@ public class KDBMetadata implements ConnectorMetadata {
                 ConnectorExpression expr = func.getInputs().get(0);
                 if (expr instanceof Variable) {
                     Variable var = (Variable) expr;
-                    newQuery.append(var.getName());
+                    KDBColumnHandle colHandle = (KDBColumnHandle) assignments.get(var.getName());
+                    if (colHandle == null) {
+                        Optional.empty();
+                    }
+                    newQuery.append(colHandle.getName());
                 } else {
                     return Optional.empty();
                 }
