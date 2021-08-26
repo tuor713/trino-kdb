@@ -199,7 +199,8 @@ public class KDBMetadata implements ConnectorMetadata {
         return Optional.of(new LimitApplicationResult<>(
                 new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions()),
                 // for partitioned table since partitions are limited individually the limit is not guaranteed
-                !khandle.isPartitioned()
+                !khandle.isPartitioned(),
+                false
         ));
     }
 
@@ -214,7 +215,7 @@ public class KDBMetadata implements ConnectorMetadata {
 
         KDBTableHandle newHandle = new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions());
 
-        return Optional.of(new ConstraintApplicationResult<>(newHandle, TupleDomain.all()));
+        return Optional.of(new ConstraintApplicationResult<>(newHandle, TupleDomain.all(), false));
     }
 
     private static final Map<String,String> supported_functions = ImmutableMap.<String,String>builder()
@@ -325,7 +326,8 @@ public class KDBMetadata implements ConnectorMetadata {
                             new KDBColumnHandle(var.getName(), var.getType(), KDBType.fromTrinoType(var.getType()), Optional.empty(), false),
                             var.getType());
                 }).collect(Collectors.toList()),
-                Map.of()
+                Map.of(),
+                false
         );
 
         return Optional.of(result);
