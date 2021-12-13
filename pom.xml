@@ -11,8 +11,8 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <trino.version>359</trino.version>
-        <airlift.version>207</airlift.version>
+        <trino.version>365</trino.version>
+        <airlift.version>209</airlift.version>
     </properties>
 
     <dependencies>

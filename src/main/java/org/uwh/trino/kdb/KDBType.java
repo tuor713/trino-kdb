@@ -4,7 +4,6 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.*;
-import io.trino.type.UuidType;
 import kx.c;
 
 import java.time.LocalDate;
