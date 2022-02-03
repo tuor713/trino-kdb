@@ -18,7 +18,7 @@ public class StatsManager {
     }
 
     public TableStatistics getTableStats(KDBTableHandle table) {
-        SchemaTableName fname = new SchemaTableName(table.getSchemaName(), table.getTableName());
+        SchemaTableName fname = new SchemaTableName(KDBMetadata.resolveSchema(table.getNamespace()), table.getTableName());
         if (!cachedStats.containsKey(fname)) {
             try {
                 cachedStats.put(fname, client.getTableStatistics(table));

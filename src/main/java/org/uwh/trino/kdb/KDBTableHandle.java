@@ -18,7 +18,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class KDBTableHandle implements ConnectorTableHandle {
-    private final String schemaName;
+    private final String namespace;
     private final String tableName;
     private final TupleDomain<ColumnHandle> constraint;
     private final OptionalLong limit;
@@ -28,14 +28,14 @@ public class KDBTableHandle implements ConnectorTableHandle {
     private final Optional<KDBColumnHandle> partitionColumn;
 
     @JsonCreator
-    public KDBTableHandle(@JsonProperty("schemaName") String schemaName,
+    public KDBTableHandle(@JsonProperty("namespace") String namespace,
                           @JsonProperty("tableName") String tableName,
                           @JsonProperty("constraint") TupleDomain<ColumnHandle> constraint,
                           @JsonProperty("limit") OptionalLong limit,
                           @JsonProperty("isPartitioned") boolean isPartitioned,
                           @JsonProperty("partitionColumn") Optional<KDBColumnHandle> partitionColumn,
                           @JsonProperty("partitions") List<String> partitions) {
-        this.schemaName = schemaName;
+        this.namespace = namespace;
         this.tableName = tableName;
         this.constraint = constraint;
         this.limit = limit;
@@ -45,13 +45,21 @@ public class KDBTableHandle implements ConnectorTableHandle {
     }
 
     @JsonProperty
-    public String getSchemaName() {
-        return schemaName;
+    public String getNamespace() {
+        return namespace;
     }
 
     @JsonProperty
     public String getTableName() {
         return tableName;
+    }
+
+    public String getQualifiedTableName() {
+        if (namespace.equals("")) {
+            return tableName;
+        } else {
+            return "." + namespace + "." + tableName;
+        }
     }
 
     @JsonProperty
@@ -121,7 +129,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
         if (isQuery() && !tableName.matches("^\\(.*\\)$")) {
             return "("+tableName+")";
         } else {
-            return tableName;
+            return getQualifiedTableName();
         }
     }
 
@@ -243,7 +251,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
     @Override
     public String toString() {
         return "KDBTableHandle{" +
-                "schemaName='" + schemaName + '\'' +
+                "namespace='" + namespace + '\'' +
                 ", tableName='" + tableName + '\'' +
                 ", constraint=" + constraint +
                 ", limit=" + limit +

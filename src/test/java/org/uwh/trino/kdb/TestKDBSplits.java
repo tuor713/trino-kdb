@@ -16,7 +16,7 @@ public class TestKDBSplits {
     @Test
     public void testNonPartitionedTableSplits() throws Exception {
         ConnectorSplitSource splits = sut.getSplits(null, null,
-                new KDBTableHandle("default", "table", TupleDomain.all(), OptionalLong.empty(), false, Optional.empty(), List.of()),
+                new KDBTableHandle("", "table", TupleDomain.all(), OptionalLong.empty(), false, Optional.empty(), List.of()),
                 ConnectorSplitManager.SplitSchedulingStrategy.GROUPED_SCHEDULING, DynamicFilter.EMPTY);
         assertEquals(noOfSplits(splits), 1);
     }
@@ -24,7 +24,7 @@ public class TestKDBSplits {
     @Test
     public void testPartitionedTableSplits() throws Exception {
         ConnectorSplitSource splits = sut.getSplits(null, null,
-                new KDBTableHandle("default", "table", TupleDomain.all(), OptionalLong.empty(),
+                new KDBTableHandle("", "table", TupleDomain.all(), OptionalLong.empty(),
                         true,
                         Optional.of(new KDBColumnHandle("date", DateType.DATE, KDBType.Date, Optional.empty(), true)),
                         List.of("2021.05.28", "2021.05.29", "2021.05.30", "2021.05.31")),

@@ -41,6 +41,13 @@ public class TestKDBMetadata {
     }
 
     @Test
+    public void testListSchemas() {
+        List<String> schemas = sut.listSchemaNames(session);
+        Set<String> expected = Set.of("default", "myns", "casens");
+        assertTrue(Set.copyOf(schemas).containsAll(expected));
+    }
+
+    @Test
     public void testListTables() {
         List<SchemaTableName> tables = sut.listTables(session, Optional.empty());
 
@@ -48,7 +55,23 @@ public class TestKDBMetadata {
         Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table", "partition_table", "casesensitivetable");
 
         assertEquals(tables.size(), expected.size());
-        assertEquals(tables.stream().map(t -> t.getTableName()).collect(Collectors.toSet()), expected);
+        assertEquals(tables.stream().map(SchemaTableName::getTableName).collect(Collectors.toSet()), expected);
+    }
+
+    @Test
+    public void testListTablesInSchema() {
+        List<SchemaTableName> tables = sut.listTables(session, Optional.of("myns"));
+        Set<String> expected = Set.of("atable", "btable", "ctable");
+        assertEquals(tables.size(), expected.size());
+        assertEquals(tables.stream().map(SchemaTableName::getTableName).collect(Collectors.toSet()), expected);
+    }
+
+    @Test
+    public void testListTablesInCaseSensitiveSchema() {
+        List<SchemaTableName> tables = sut.listTables(session, Optional.of("casens"));
+        Set<String> expected = Set.of("casenstable");
+        assertEquals(tables.size(), expected.size());
+        assertEquals(tables.stream().map(SchemaTableName::getTableName).collect(Collectors.toSet()), expected);
     }
 
     @Test
@@ -61,6 +84,24 @@ public class TestKDBMetadata {
         assertEquals(((KDBColumnHandle) columns.get("sorted_col")).getAttribute(), Optional.of(KDBAttribute.Sorted));
         assertEquals(((KDBColumnHandle) columns.get("unique_col")).getAttribute(), Optional.of(KDBAttribute.Unique));
         assertEquals(((KDBColumnHandle) columns.get("plain_col")).getAttribute(), Optional.empty());
+    }
+
+    @Test
+    public void testColumnsInSchema() {
+        ConnectorTableHandle handle = sut.getTableHandle(session, new SchemaTableName("casens", "casenstable"));
+        Map<String, ColumnHandle> columns = sut.getColumnHandles(session, handle);
+        assertEquals(columns.size(), 2);
+    }
+
+    @Test
+    public void testColumnsCachingAcrossSchemas() {
+        ConnectorTableHandle handle = sut.getTableHandle(session, new SchemaTableName("default", "ctable"));
+        Map<String, ColumnHandle> columns = sut.getColumnHandles(session, handle);
+        assertEquals(columns.size(), 4);
+
+        handle = sut.getTableHandle(session, new SchemaTableName("myns", "ctable"));
+        columns = sut.getColumnHandles(session, handle);
+        assertEquals(columns.size(), 2);
     }
 
     @Test

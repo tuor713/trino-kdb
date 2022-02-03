@@ -2,14 +2,11 @@ package org.uwh.trino.kdb;
 
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
-import io.trino.spi.predicate.Domain;
-import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.DoubleRange;
@@ -20,11 +17,10 @@ import io.trino.spi.type.Type;
 import kx.c;
 
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class KDBClient {
     private static final Logger LOGGER = Logger.get(KDBClient.class);
@@ -74,38 +70,51 @@ public class KDBClient {
         }
     }
 
-    public List<String> listTables() throws Exception {
-        String[] res = (String[]) exec("system \"a\"");
+    public List<String> listNamespaces() throws Exception {
+        String[] res = (String[]) exec("exec distinct ns from (uj/) ({[ns] ns:`$\".\", string ns; ts: tables ns; ([] ns:(count ts)#ns; table:ts)} each ((enlist `) , key `))");
+        return Arrays.stream(res).map(ns -> ns.substring(1)).collect(Collectors.toList());
+    }
+
+    public List<String> listTables(String ns) throws Exception {
+        String[] res = (String[]) exec("tables `."+ns);
         return Arrays.asList(res);
+    }
+
+    public List<String[]> listTables() throws Exception {
+        c.Flip res = (c.Flip) exec("(uj/) ({[ns] ns:`$\".\", string ns; ts: tables ns; ([] ns:(count ts)#ns; table:ts)} each ((enlist `) , key `))");
+        String[] namespaces = (String[]) res.y[0];
+        String[] tables = (String[]) res.y[1];
+        return IntStream.range(0, namespaces.length).mapToObj(i -> new String[] { namespaces[i].substring(1), tables[i]}).collect(Collectors.toList());
     }
 
     private boolean isPartitioned(String name) throws Exception {
         return !KDBTableHandle.isQuery(name) && (boolean) exec("`boolean$.Q.qp["+name+"]");
     }
 
-    public KDBTableHandle getTableHandle(String schema, String name) throws Exception {
-        boolean isPartitioned = isPartitioned(name);
+    public KDBTableHandle getTableHandle(String namespace, String name) throws Exception {
+        String qualifiedTableName = (namespace.equals("") ? "" : "." + namespace + ".") + name;
+        boolean isPartitioned = isPartitioned(qualifiedTableName);
         List<String> partitions = List.of();
         Optional<KDBColumnHandle> partitionColumn = Optional.empty();
         if (isPartitioned) {
-            Object[] colInfo = (Object[]) exec("((0!meta " + name + ")[`c][0]; (0!meta " + name + ")[`t][0])");
+            Object[] colInfo = (Object[]) exec("((0!meta " + qualifiedTableName + ")[`c][0]; (0!meta " + qualifiedTableName + ")[`t][0])");
             String colName = (String) colInfo[0];
             KDBType colType = KDBType.fromTypeCode((char) colInfo[1]);
             partitionColumn = Optional.of(new KDBColumnHandle(colName, colType.getTrinoType(), colType, Optional.empty(), true));
 
             partitions = new ArrayList<>();
-            for (Object partition : (Object[]) exec("string (select distinct " + colName +" from " + name + ")[`" + colName + "]")) {
+            for (Object partition : (Object[]) exec("string (select distinct " + colName +" from " + qualifiedTableName + ")[`" + colName + "]")) {
                 partitions.add(new String((char[]) partition));
             }
         }
 
-        return new KDBTableHandle(schema, name, TupleDomain.all(), OptionalLong.empty(), isPartitioned, partitionColumn, partitions);
+        return new KDBTableHandle(namespace, name, TupleDomain.all(), OptionalLong.empty(), isPartitioned, partitionColumn, partitions);
     }
 
     public List<ColumnMetadata> getTableMeta(KDBTableHandle handle) throws Exception {
         boolean isPartitioned = handle.isPartitioned();
 
-        c.Dict res = (c.Dict) exec("meta "+handle.getTableName());
+        c.Dict res = (c.Dict) exec("meta "+handle.getQualifiedTableName());
         c.Flip columns = (c.Flip) res.x;
         c.Flip colMeta = (c.Flip) res.y;
         String[] colNames = (String[]) columns.y[0];
@@ -164,7 +173,7 @@ public class KDBClient {
             return Optional.empty();
         }
 
-        long[] rows = (long[]) exec("exec rowcount from .trino.stats where table = `" + table.getTableName());
+        long[] rows = (long[]) exec("exec rowcount from .trino.stats where table = `" + table.getQualifiedTableName());
         if (rows.length == 0) {
             // No pre-generated stats for this table
             return Optional.empty();
@@ -173,7 +182,7 @@ public class KDBClient {
         TableStatistics.Builder builder = TableStatistics.builder().setRowCount(Estimate.of(rows[0]));
 
         Map<String,ColumnMetadata> colMap = getTableMeta(table).stream().collect(Collectors.toMap(ColumnMetadata::getName, Function.identity()));
-        c.Flip colMeta = (c.Flip) exec("select column, distinct_count, null_fraction, size, min_value, max_value from .trino.colstats where table = `" + table.getTableName());
+        c.Flip colMeta = (c.Flip) exec("select column, distinct_count, null_fraction, size, min_value, max_value from .trino.colstats where table = `" + table.getQualifiedTableName());
         String[] columns = (String[]) colMeta.y[0];
         long[] distinctCounts = (long[]) colMeta.y[1];
         double[] nullFractions = (double[]) colMeta.y[2];
@@ -202,14 +211,14 @@ public class KDBClient {
     }
 
     public TableStatistics getTableStatistics(KDBTableHandle table) throws Exception {
-        LOGGER.info("Collecting statistics for table " + table.getSchemaName() + "." + table.getTableName());
+        LOGGER.info("Collecting statistics for table " + table.getQualifiedTableName());
 
         Optional<TableStatistics> preGeneratedStats = getPregeneratedStats(table);
         if (preGeneratedStats.isPresent()) {
             return preGeneratedStats.get();
         }
 
-        long rows = (long) exec("count " + table.getTableName());
+        long rows = (long) exec("count " + table.getQualifiedTableName());
 
         List<ColumnMetadata> columnMetadata = getTableMeta(table);
         String colQuery;
@@ -218,8 +227,8 @@ public class KDBClient {
             // -22 does not work on the whole table, so calculate partition by partition
             colQuery = columnMetadata.stream()
                     .map(col -> "(select name:`" + col.getName() + ", dcount, ncount, size from " +
-                            "update size:(+/) {[v] (select count i, size:-22!" + col.getName() + " from "+ table.getTableName() + " where " + parCol.getName() + " = v)[`size]} each (select distinct " + parCol.getName() +" from "+table.getTableName()+")[`" + parCol.getName()+"] from "+
-                            "select dcount: `long$(avg dcount) * (count " + table.getTableName() + "), ncount: sum ncount from ((uj/) {[v] select dcount:(count distinct " + col.getName() + ") % (count i), " + ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName(): "ncount: sum `long$null " + col.getName()) + " from " + table.getTableName() + " where " + parCol.getName() + " = v} each (select distinct " + parCol.getName() + " from " + table.getTableName() + ")[`" + parCol.getName() + "])"
+                            "update size:(+/) {[v] (select count i, size:-22!" + col.getName() + " from "+ table.getQualifiedTableName() + " where " + parCol.getName() + " = v)[`size]} each (select distinct " + parCol.getName() +" from "+table.getQualifiedTableName()+")[`" + parCol.getName()+"] from "+
+                            "select dcount: `long$(avg dcount) * (count " + table.getQualifiedTableName() + "), ncount: sum ncount from ((uj/) {[v] select dcount:(count distinct " + col.getName() + ") % (count i), " + ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName(): "ncount: sum `long$null " + col.getName()) + " from " + table.getQualifiedTableName() + " where " + parCol.getName() + " = v} each (select distinct " + parCol.getName() + " from " + table.getQualifiedTableName() + ")[`" + parCol.getName() + "])"
                              + ")")
                     .collect(Collectors.joining(" uj "));
         } else {
@@ -228,7 +237,7 @@ public class KDBClient {
                             "from select dcount:count distinct " + col.getName() + ", " +
                             ((col.getProperties().get("kdb.type") == KDBType.String) ? "ncount: sum `long$0 = count each " + col.getName() + ", " : "ncount: sum `long$null " + col.getName() + ", ") +
                             "size: -22!" + col.getName() + " " +
-                            "from " + table.getTableName() + ")")
+                            "from " + table.getQualifiedTableName() + ")")
                     .collect(Collectors.joining(" uj "));
         }
 

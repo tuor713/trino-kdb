@@ -21,11 +21,13 @@ import static java.util.Objects.requireNonNull;
 public class KDBMetadata implements ConnectorMetadata {
     private static final Logger LOGGER = Logger.get(KDBMetadata.class);
     private static final String SCHEMA_NAME = "default";
+    private static final String DEFAULT_NS = "";
     private final KDBClient client;
     private final boolean useStats;
     private final StatsManager stats;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    private final Map<String,String> tableMetadataCache = new HashMap<>();
+    private final Map<String,String> schemaMetadataCache = new HashMap<>();
+    private final Map<SchemaTableName,String> tableMetadataCache = new HashMap<>();
     private final Cache<String,List<ColumnMetadata>> columnMetadataCache;
 
     public KDBMetadata(KDBClient client, Config config, StatsManager stats) {
@@ -38,8 +40,11 @@ public class KDBMetadata implements ConnectorMetadata {
 
     private void refreshMetadata() {
         try {
-            client.listTables().stream().forEach( t-> {
-                tableMetadataCache.put(t.toLowerCase(Locale.ENGLISH), t);
+            client.listNamespaces().stream().forEach( ns -> {
+                schemaMetadataCache.put(ns.toLowerCase(Locale.ENGLISH), ns);
+            });
+            client.listTables().stream().forEach( st -> {
+                tableMetadataCache.put(new SchemaTableName(resolveSchema(st[0]), st[1]), st[1]);
             });
         } catch (Exception e) {
             LOGGER.warn(e, "Failed to refresh KDB metadata from instance: " + client.getHost() + ":" + client.getPort());
@@ -48,35 +53,54 @@ public class KDBMetadata implements ConnectorMetadata {
 
     private List<ColumnMetadata> getColumns(KDBTableHandle handle) {
         try {
-            return columnMetadataCache.get(handle.getTableName(), () -> {
+            return columnMetadataCache.get(handle.getQualifiedTableName(), () -> {
                 return client.getTableMeta(handle);
             });
         } catch (ExecutionException e) {
-            LOGGER.error("Could not retrieve metadata for table "+handle.getTableName());
+            LOGGER.error("Could not retrieve metadata for table "+handle.getQualifiedTableName());
             throw new RuntimeException(e);
         }
     }
 
     @Override
     public List<String> listSchemaNames(ConnectorSession session) {
-        return ImmutableList.of(SCHEMA_NAME);
+        return schemaMetadataCache.keySet().stream().map(s -> s.isEmpty() ? SCHEMA_NAME : s).collect(Collectors.toList());
     }
 
     @Override
     public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> schemaName) {
         try {
-            return client.listTables().stream().map(t -> new SchemaTableName(SCHEMA_NAME, t)).collect(Collectors.toUnmodifiableList());
+            String ns = resolveKDBNamespace(schemaName);
+            final String schema = resolveSchema(ns);
+            return client.listTables(ns).stream().map(t -> new SchemaTableName(schema, t)).collect(Collectors.toUnmodifiableList());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static String resolveSchema(String ns) {
+        if (ns.equals(DEFAULT_NS)) {
+            return SCHEMA_NAME;
+        } else {
+            return ns.toLowerCase(Locale.ENGLISH);
+        }
+    }
+
+    private String resolveKDBNamespace(Optional<String> schemaName) {
+        String ns = DEFAULT_NS;
+        if (schemaName.isPresent() && !schemaName.get().equals(SCHEMA_NAME)) {
+            ns = schemaMetadataCache.getOrDefault(schemaName.get(), schemaName.get());
+        }
+        return ns;
     }
 
     private List<SchemaTableName> listTables(ConnectorSession session, SchemaTablePrefix prefix) {
         try {
             return client.listTables()
                     .stream()
-                    .filter(t -> prefix.getTable().stream().allMatch(tname -> tname.equals(t)))
-                    .map(t -> new SchemaTableName(SCHEMA_NAME, t))
+                    .filter(t -> prefix.getTable().stream().allMatch(tname -> tname.equals(t[1])))
+                    .filter(t -> prefix.getSchema().stream().allMatch(sname -> sname.equals(resolveSchema(t[0]))))
+                    .map(t -> new SchemaTableName(resolveSchema(t[0]), t[1]))
                     .collect(Collectors.toUnmodifiableList());
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -103,15 +127,15 @@ public class KDBMetadata implements ConnectorMetadata {
         try {
             String tName = tableName.getTableName();
             // Retrieve original capitalization since KDB is case sensitive
-            if (tableMetadataCache.containsKey(tName)) {
-                tName = tableMetadataCache.get(tName);
+            if (tableMetadataCache.containsKey(tableName)) {
+                tName = tableMetadataCache.get(tableName);
             }
 
             if (KDBTableHandle.isQuery(tName) && tName.contains("\\")) {
                 tName = unescapeDynamicQuery(tName);
             }
 
-            return client.getTableHandle(tableName.getSchemaName(), tName);
+            return client.getTableHandle(resolveKDBNamespace(Optional.of(tableName.getSchemaName())), tName);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -146,7 +170,7 @@ public class KDBMetadata implements ConnectorMetadata {
         KDBTableHandle handle = (KDBTableHandle) table;
         try {
             List<ColumnMetadata> columns = getColumns(handle);
-            return new ConnectorTableMetadata(new SchemaTableName(handle.getSchemaName(), handle.getTableName()), columns);
+            return new ConnectorTableMetadata(new SchemaTableName(resolveSchema(handle.getNamespace()), handle.getTableName()), columns);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -197,7 +221,7 @@ public class KDBMetadata implements ConnectorMetadata {
         }
 
         return Optional.of(new LimitApplicationResult<>(
-                new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions()),
+                new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions()),
                 // for partitioned table since partitions are limited individually the limit is not guaranteed
                 !khandle.isPartitioned(),
                 false
@@ -213,7 +237,7 @@ public class KDBMetadata implements ConnectorMetadata {
             return Optional.empty();
         }
 
-        KDBTableHandle newHandle = new KDBTableHandle(khandle.getSchemaName(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions());
+        KDBTableHandle newHandle = new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions());
 
         return Optional.of(new ConstraintApplicationResult<>(newHandle, TupleDomain.all(), false));
     }
@@ -317,7 +341,7 @@ public class KDBMetadata implements ConnectorMetadata {
         }
 
         AggregationApplicationResult<ConnectorTableHandle> result = new AggregationApplicationResult<>(
-                new KDBTableHandle(SCHEMA_NAME, newQuery.toString(), TupleDomain.all(), OptionalLong.empty(), false, Optional.empty(), List.of()),
+                new KDBTableHandle(DEFAULT_NS, newQuery.toString(), TupleDomain.all(), OptionalLong.empty(), false, Optional.empty(), List.of()),
                 projections,
                 projections.stream().map(v -> {
                     Variable var = (Variable) v;

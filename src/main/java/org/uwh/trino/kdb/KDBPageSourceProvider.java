@@ -26,7 +26,7 @@ public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
 
         if (kSplit.getPartition().isPresent()) {
             tHandle = new KDBTableHandle(
-                    tHandle.getSchemaName(),
+                    tHandle.getNamespace(),
                     tHandle.getTableName(),
                     tHandle.getConstraint().intersect(getSplitColumnHandle(tHandle.getPartitionColumn().get(), kSplit.getPartition().get())),
                     tHandle.getLimit(),

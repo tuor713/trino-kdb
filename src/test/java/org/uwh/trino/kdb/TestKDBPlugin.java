@@ -37,6 +37,11 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("attribute_table:([] unique_col: `u#`a`b`c; sorted_col: `s#1 2 3; parted_col: `p#1 1 2; grouped_col: `g#`a`b`c; plain_col: 1 2 3)");
         conn.k("CaseSensitiveTable:([] Symbol: `a`a`b`b; Number: 1 2 3 4; Square: 1 4 9 16)");
 
+        conn.k(".myns.atable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
+        conn.k(".myns.BTable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
+        conn.k(".myns.ctable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
+        conn.k(".CaseNS.casenstable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
+
         conn.k("tfunc:{[] atable}");
         Path tempp = Files.createTempDirectory("splay");
         Path p = tempp.resolve("splay_table");
@@ -453,6 +458,23 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testCaseSensitiveQuery() {
         query("select * from \"select from \\Case\\Sensitive\\Table\"", 4);
+    }
+
+    @Test
+    public void testNamespaceQuery() {
+        query("select * from myns.atable", 4);
+        query("select * from myns.btable", 4);
+        query("select * from myns.ctable", 4);
+        query("select * from casens.casenstable", 4);
+    }
+
+    @Test
+    public void testMetadataQueries() {
+        query("show schemas from kdb", 6);
+        assertEquals(Set.of("default", "myns", "casens", "o", "trino", "information_schema"),res.getOnlyColumnAsSet());
+
+        query("show tables from kdb.myns", 3);
+        query("show tables from kdb.casens", 1);
     }
 
     private static String lastQuery = null;
