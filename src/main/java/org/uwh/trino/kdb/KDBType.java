@@ -87,9 +87,9 @@ public enum KDBType {
         }
     }),
     FloatArray('F', new ArrayType(DoubleType.DOUBLE), (bb, values) -> { writeArray(KDBType.Float, bb, values); }),
-    Char('c', Constants.CHAR_TYPE, (bb, values) -> {
+    Char('c', VarcharType.VARCHAR, (bb, values) -> {
         for (char c : (char[]) values) {
-            Constants.CHAR_TYPE.writeString(bb, java.lang.String.valueOf(c));
+            VarcharType.VARCHAR.writeString(bb, java.lang.String.valueOf(c));
         }
     }),
     String('C', VarcharType.VARCHAR, (bb, values) -> {
