@@ -22,6 +22,9 @@ public class KDBPageSource implements ConnectorPageSource {
         this.columns = columns;
         this.client = client;
         this.pageSize = pageSize;
+        if (table.getConstraint().isNone()) {
+            finished = true;
+        }
     }
 
     @Override
@@ -41,6 +44,10 @@ public class KDBPageSource implements ConnectorPageSource {
 
     @Override
     public Page getNextPage() {
+        if (finished) {
+            return null;
+        }
+
         try {
             long nanos = System.nanoTime();
             Page result = client.getData(table, columns, currentPage, pageSize);

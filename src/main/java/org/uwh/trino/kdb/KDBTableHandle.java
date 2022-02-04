@@ -224,8 +224,11 @@ public class KDBTableHandle implements ConnectorTableHandle {
     }
 
     public static String constructFilters(TupleDomain<ColumnHandle> domain) {
-        if (domain.isAll() || domain.getDomains().isEmpty()) {
+        if (domain.isAll()) {
             return null;
+        } else if (domain.isNone()) {
+            // impossible constraint
+            return "i = -1";
         }
 
         TreeMap<KDBColumnHandle, String> conditions = new TreeMap<>(

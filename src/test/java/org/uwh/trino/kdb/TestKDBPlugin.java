@@ -436,6 +436,9 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         // 3 rows in one date
         query("select count(*) from partition_table where date = DATE '2021-05-28'", 1);
         assertEquals(res.getOnlyColumnAsSet(), Set.of(3L));
+
+        query("select * from partition_table where date = DATE '2021-05-28' limit 100", 3);
+
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.type.Type;
 
+import java.util.Objects;
 import java.util.Optional;
 
 public class KDBColumnHandle implements ColumnHandle {
@@ -49,6 +50,21 @@ public class KDBColumnHandle implements ColumnHandle {
     @JsonProperty("isPartitionColumn")
     public boolean isPartitionColumn() {
         return isPartitionColumn;
+    }
+
+    /* Equality by column name */
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        KDBColumnHandle that = (KDBColumnHandle) o;
+        return Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
     }
 
     @Override
