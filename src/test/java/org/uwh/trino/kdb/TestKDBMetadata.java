@@ -32,6 +32,8 @@ public class TestKDBMetadata {
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
         KDBClient client = new KDBClient("localhost", 8000, "user", "password");
         sut = new KDBMetadata(client, cfg, new StatsManager(client));
+        // some time to allow metadata queries to finish
+        Thread.sleep(50);
     }
 
     @AfterMethod
