@@ -14,11 +14,6 @@ public class KDBConnectorFactory implements ConnectorFactory {
     }
 
     @Override
-    public ConnectorHandleResolver getHandleResolver() {
-        return new KDBHandleResolver();
-    }
-
-    @Override
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context) {
         Config cfg = new Config(config);
 

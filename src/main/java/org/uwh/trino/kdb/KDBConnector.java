@@ -41,11 +41,6 @@ public class KDBConnector implements Connector {
     }
 
     @Override
-    public Optional<ConnectorHandleResolver> getHandleResolver() {
-        return Optional.of(new KDBHandleResolver());
-    }
-
-    @Override
     public ConnectorSplitManager getSplitManager() {
         return new KDBSplitManager();
     }

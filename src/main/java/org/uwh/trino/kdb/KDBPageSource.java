@@ -67,7 +67,7 @@ public class KDBPageSource implements ConnectorPageSource {
     }
 
     @Override
-    public long getSystemMemoryUsage() {
+    public long getMemoryUsage() {
         return 0;
     }
 

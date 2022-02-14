@@ -1,11 +1,11 @@
 package org.uwh.trino.kdb;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.metadata.SessionPropertyManager;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.testing.*;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
