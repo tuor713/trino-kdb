@@ -35,7 +35,7 @@ public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
                     tHandle.getPartitions());
         }
 
-        return new KDBPageSource(client, tHandle, tColumns, session.getProperty(Config.SESSION_PAGE_SIZE, Integer.class));
+        return new KDBPageSource(client, tHandle, tColumns, session.getProperty(Config.SESSION_PAGE_SIZE, Integer.class), session.getProperty(Config.SESSION_VIRTUAL_TABLES, Boolean.class));
     }
 
     private TupleDomain<ColumnHandle> getSplitColumnHandle(KDBColumnHandle partitionColumn, String partition) {

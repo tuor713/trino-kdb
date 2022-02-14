@@ -91,7 +91,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
         return !tableName.matches("[a-zA-Z.][a-zA-Z._0-9]*");
     }
 
-    public String toQuery(List<KDBColumnHandle> columns, OptionalInt page, int pageSize) {
+    public String toQuery(List<KDBColumnHandle> columns, OptionalInt page, int pageSize, boolean isVirtualTables) {
         StringBuilder query = new StringBuilder();
 
         // Pagination & Limits
@@ -106,7 +106,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
             }
 
             // partitioned tables don't directly support paging -> create an inner query first
-            if (isPartitioned) {
+            if (isPartitioned || isVirtualTables) {
                 query.append("from select ");
             }
         } else {

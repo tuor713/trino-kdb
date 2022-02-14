@@ -145,7 +145,7 @@ public class KDBClient {
         return ImmutableList.copyOf(result);
     }
 
-    public Page getData(KDBTableHandle handle, List<KDBColumnHandle> columns, int page, int pageSize) throws Exception {
+    public Page getData(KDBTableHandle handle, List<KDBColumnHandle> columns, int page, int pageSize, boolean isVirtualTables) throws Exception {
         // "select count(*) type use cases
         if (columns.isEmpty()) {
             columns = List.of(new KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long, null, false));
@@ -154,7 +154,7 @@ public class KDBClient {
             columns = List.of(columns.get(0), new KDBColumnHandle("i", BigintType.BIGINT, KDBType.Long, null, false));
         }
 
-        c.Flip res = (c.Flip) exec(handle.toQuery(columns, OptionalInt.of(page), pageSize));
+        c.Flip res = (c.Flip) exec(handle.toQuery(columns, OptionalInt.of(page), pageSize, isVirtualTables));
 
         PageBuilder builder = new PageBuilder(columns.stream().map(col -> col.getType()).collect(Collectors.toList()));
 

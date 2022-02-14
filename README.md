@@ -38,6 +38,7 @@ Settings that can be used in catalog file:
 | `use.stats` | _(Optional)_ Calculate stats for KDB tables, on the fly and cached in memory (default: true) |
 | `kdb.metadata.refresh.interval.seconds` | _(Optional)_ Refresh interval, in seconds, for KDB metadata (default: 3600 = 1 hour) |
 | `push.down.aggregation` | _(Optional)_ Enable aggregation push down (default: true) |
+| `virtual.tables` | _(Optional)_ Treat all tables as virtual - not supporting features such as direct `select [x]` queries (default: false) |
 
 #### Session Property overrides
 
@@ -46,6 +47,7 @@ Settings that can be used in catalog file:
 | `push_down_aggregation` | Catalog property `push.down.aggregation` |
 | `use_stats` | Catalog property `use.stats` |
 | `page_size` | Catalog property `page.size` |
+| `virtual_tables` | Catalog property `virtual.tables` |
 
 ### Pre-Generated Stats
 

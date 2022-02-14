@@ -333,7 +333,7 @@ public class KDBMetadata implements ConnectorMetadata {
         // limit and constraint -> need to construct a sub-query before running aggregation
         if (handle.getLimit().isPresent() && !handle.getConstraint().isAll()) {
             newQuery.append("(")
-                    .append(handle.toQuery(Collections.emptyList(), OptionalInt.empty(), 50000))
+                    .append(handle.toQuery(Collections.emptyList(), OptionalInt.empty(), 50000, false))
                     .append(")");
         } else {
             newQuery.append(handle.getTableNameQuery());

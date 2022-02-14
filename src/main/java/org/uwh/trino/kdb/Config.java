@@ -26,6 +26,9 @@ public class Config {
     public static final String DEFAULT_PUSH_DOWN_AGGREGATION = "true";
     public static final String SESSION_PUSH_DOWN_AGGREGATION = "push_down_aggregation";
 
+    public static final String KDB_VIRTUAL_TABLES = "virtual.tables";
+    public static final String DEFAULT_VIRTUAL_TABLES = "false";
+    public static final String SESSION_VIRTUAL_TABLES = "virtual_tables";
 
     private final Map<String,String> config;
 
@@ -37,7 +40,8 @@ public class Config {
         return List.of(
                 PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", pushDownAggregation(), false),
                 PropertyMetadata.booleanProperty(SESSION_USE_STATS, "Use statistics", useStats(), false),
-                PropertyMetadata.integerProperty(SESSION_PAGE_SIZE, "Page size for sourcing KDB data in rows", getPageSize(), false)
+                PropertyMetadata.integerProperty(SESSION_PAGE_SIZE, "Page size for sourcing KDB data in rows", getPageSize(), false),
+                PropertyMetadata.booleanProperty(SESSION_VIRTUAL_TABLES, "Treat tables as virtual tables", getVirtualTables(), false)
         );
     }
 
@@ -72,5 +76,9 @@ public class Config {
 
     public int getMetadataRefreshInterval() {
         return Integer.parseInt(config.getOrDefault(KDB_METADATA_REFRESH_INTERVAL, DEFAULT_METADATA_REFRESH_INTERVAL));
+    }
+
+    public boolean getVirtualTables() {
+        return Boolean.parseBoolean(config.getOrDefault(KDB_VIRTUAL_TABLES, DEFAULT_VIRTUAL_TABLES));
     }
 }

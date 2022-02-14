@@ -303,6 +303,13 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     }
 
     @Test
+    public void testVirtualTableOverride() {
+        Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "virtual_tables", "true").build();
+        query(session, "select * from atable limit 2");
+        assertLastQuery("select [2] from select name, iq from atable where i<2");
+    }
+
+    @Test
     public void testDescribe() {
         query("describe atable", 2);
         assertResultColumn(0, Set.of("name","iq"));
