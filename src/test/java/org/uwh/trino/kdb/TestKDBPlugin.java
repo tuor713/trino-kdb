@@ -449,6 +449,15 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     }
 
     @Test
+    public void testSymbolWithSpaces() {
+        query("select sym from \"([] sym:(`with; `space; `$\"\"with space\"\"))\" where sym = 'with space'", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("with space"));
+
+        query("select sym from \"([] sym:(`with; `space; `$\"\"with space\"\"))\" where sym in ('with', 'with space')", 2);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("with", "with space"));
+    }
+
+    @Test
     public void testPartitionedTableQuerySplit() {
         query("select * from partition_table", 12);
         assertTrue(Set.of(

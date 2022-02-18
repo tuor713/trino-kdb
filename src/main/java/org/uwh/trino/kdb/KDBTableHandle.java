@@ -15,6 +15,8 @@ import javax.swing.text.html.Option;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class KDBTableHandle implements ConnectorTableHandle {
@@ -147,6 +149,9 @@ public class KDBTableHandle implements ConnectorTableHandle {
         return Optional.empty();
     }
 
+    // https://code.kx.com/q/basics/syntax/#names-and-namespaces
+    private static final Predicate<String> VALID_NAME = Pattern.compile("^[.a-zA-Z][._a-zA-Z0-9]*$").asPredicate();
+
     private static String formatKDBValue(KDBType type, Object value) {
         if (type == KDBType.String) {
             String s = ((Slice) value).toStringUtf8();
@@ -160,7 +165,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
             return date.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
         } else if (value instanceof Slice) {
             Slice s = (Slice) value;
-            return "`" + s.toStringUtf8();
+            return VALID_NAME.test(s.toStringUtf8()) ? "`" + s.toStringUtf8() : "`$\"" + s.toStringUtf8() + "\"";
         } else {
             return value.toString();
         }
