@@ -1,6 +1,6 @@
 ## Trino Plugin for kdb+
  
-A simple [Trino](https://trino.io) plugin for [kdb+](https://code.kx.com/q/learn/) - currently in very alpha state. 
+A simple [Trino](https://trino.io) plugin for [kdb+](https://code.kx.com/q/learn/) - currently in beta state. 
 
 A sample catalog definition should look like:
 
@@ -22,7 +22,7 @@ The plugin currently supports:
 
 #### Fine Print
 
-- KDB columns of unknown type `()` will be mapped to VARCHAR and converted with `Object#toString`.
+- KDB columns of unknown type `()` will be mapped to VARCHAR and converted with `Object.toString` (except for char arrays, which convert with `String.valueOf`)
 
 ### Configuration Options
 
