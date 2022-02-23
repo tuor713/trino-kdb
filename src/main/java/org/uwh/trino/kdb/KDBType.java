@@ -193,7 +193,11 @@ public enum KDBType {
 
     Unknown(' ', VarcharType.VARCHAR, (bb, values) -> {
         for (Object o : (Object[]) values) {
-            VarcharType.VARCHAR.writeString(bb, o.toString());
+            if (o instanceof char[]) {
+                VarcharType.VARCHAR.writeString(bb, java.lang.String.valueOf((char[]) o));
+            } else {
+                VarcharType.VARCHAR.writeString(bb, o.toString());
+            }
         }
     });
 

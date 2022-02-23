@@ -496,6 +496,12 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("show tables from kdb.casens", 1);
     }
 
+    @Test
+    public void testUntypedColumnWithStrings() {
+        query("select col from \"([] col:(`sym; \"\"hello\"\"; 1))\"", 3);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("sym", "hello", "1"));
+    }
+
     private static String lastQuery = null;
     private MaterializedResult res;
     private static Logger LOGGER = Logger.getLogger(TestKDBPlugin.class.getName());
