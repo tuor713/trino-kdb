@@ -49,4 +49,9 @@ public class KDBConnector implements Connector {
     public ConnectorPageSourceProvider getPageSourceProvider() {
         return new KDBPageSourceProvider(client, config);
     }
+
+    @Override
+    public ConnectorPageSinkProvider getPageSinkProvider() {
+        return new KDBPageSinkProvider(client, config);
+    }
 }

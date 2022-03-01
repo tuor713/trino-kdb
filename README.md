@@ -19,6 +19,8 @@ The plugin currently supports:
 - Basic schema introspection
 - Limited filter and limit pass through
 - Aggregation push down for count, sum, max, min, stddev, variance, count_if, bool_and, bool_or
+- Supports tables in nested namespaces
+- *(Alpha)* Insertion support for plain in-memory tables
 
 #### Fine Print
 

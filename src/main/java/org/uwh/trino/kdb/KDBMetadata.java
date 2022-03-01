@@ -2,13 +2,14 @@ package org.uwh.trino.kdb;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
 import io.trino.spi.connector.*;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.TableStatistics;
 
 import javax.annotation.Nullable;
@@ -365,5 +366,24 @@ public class KDBMetadata implements ConnectorMetadata {
         } catch (Exception e) {
             return TableStatistics.empty();
         }
+    }
+
+    @Override
+    public ConnectorInsertTableHandle beginInsert(ConnectorSession session, ConnectorTableHandle tableHandle, List<ColumnHandle> columns, RetryMode retryMode) {
+        KDBTableHandle handle = (KDBTableHandle) tableHandle;
+        if (handle.isPartitioned()) {
+            throw new UnsupportedOperationException("KDB connector does not support insert into partitioned table "+handle.getQualifiedTableName());
+        }
+        return new KDBOutputTableHandle(handle.getNamespace(), handle.getTableName(), (List) columns);
+    }
+
+    @Override
+    public boolean supportsMissingColumnsOnInsert() {
+        return false;
+    }
+
+    @Override
+    public Optional<ConnectorOutputMetadata> finishInsert(ConnectorSession session, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics) {
+        return Optional.empty();
     }
 }

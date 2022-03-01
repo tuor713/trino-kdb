@@ -6,6 +6,7 @@ import io.trino.metadata.SessionPropertyManager;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.testing.*;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -36,6 +37,25 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("keyed_table:([name:`Dent`Beeblebrox`Prefect] iq:98 42 126)");
         conn.k("attribute_table:([] unique_col: `u#`a`b`c; sorted_col: `s#1 2 3; parted_col: `p#1 1 2; grouped_col: `g#`a`b`c; plain_col: 1 2 3)");
         conn.k("CaseSensitiveTable:([] Symbol: `a`a`b`b; Number: 1 2 3 4; Square: 1 4 9 16)");
+
+        conn.k("itable:([] num:`long$(); sym: `symbol$())");
+        conn.k("ikeytable:([sym: `symbol$()] num:`long$())");
+        conn.k("longitable:([] " +
+                " booleans:`boolean$();" +
+                " bytes:`byte$();" +
+                " shorts:`short$();" +
+                " ints:`int$();" +
+                " longs:`long$();" +
+                " reals:`real$();" +
+                " floats:`float$();" +
+                " chars: `char$(); " +
+                " syms:`symbol$();" +
+                " strings: ();" +
+                " dates: `date$();" +
+                " timestamps: `timestamp$();" +
+                " datetimes: `datetime$())");
+        conn.k("CaseITable:([] Num:`long$(); Sym: `symbol$())");
+        conn.k(".myns.instable:([] num:`long$(); sym: `symbol$())");
 
         conn.k(".myns.atable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
         conn.k(".myns.BTable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
@@ -80,6 +100,15 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
             @Override
             public void close() throws SecurityException {}
         });
+    }
+
+    @AfterMethod
+    public void cleanup() throws Exception {
+        kx.c conn = new kx.c("localhost", 8000, "user:password");
+        conn.k("delete from `itable");
+        conn.k("delete from `longitable");
+        conn.k("delete from `CaseITable");
+        conn.k("delete from `.myns.instable");
     }
 
     // this test kills the local KDB instance and is a bit of a pain to run, hence disabled by default
@@ -492,7 +521,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("show schemas from kdb", 6);
         assertEquals(Set.of("default", "myns", "casens", "o", "trino", "information_schema"),res.getOnlyColumnAsSet());
 
-        query("show tables from kdb.myns", 3);
+        query("show tables from kdb.myns", 4);
         query("show tables from kdb.casens", 1);
     }
 
@@ -501,6 +530,117 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select col from \"([] col:(`sym; \"\"hello\"\"; 1))\"", 3);
         assertEquals(res.getOnlyColumnAsSet(), Set.of("sym", "hello", "1"));
     }
+
+    /*
+    Insertion related tests
+     */
+
+    @Test
+    public void testInsertSimple() {
+        query("insert into itable values (1, 'ibm'), (2, 'msft')");
+        query("select * from itable", 2);
+    }
+
+    @Test
+    public void testInsertColumnReorder() {
+        query("insert into itable (sym, num) values ('ibm', 1), ('msft', 2)");
+        query("select sym from itable", 2);
+        assertEquals(Set.of("ibm", "msft"), res.getOnlyColumnAsSet());
+    }
+
+    @Test
+    public void testInsertNulls() {
+        query("insert into itable values (1, 'ibm'), (null, 'msft'), (3, null)");
+
+        query("select num, sym from itable", 3);
+        List<MaterializedRow> rows = res.getMaterializedRows();
+        assertEquals(List.of(1L, "ibm"), rows.get(0).getFields());
+
+        assertNull(rows.get(1).getField(0));
+        assertEquals("msft", rows.get(1).getField(1));
+
+        assertEquals(3L, rows.get(2).getField(0));
+        assertNull(rows.get(2).getField(1));
+
+        query("insert into longitable (booleans, bytes, shorts, ints, longs, reals, floats, chars, syms, strings, dates, timestamps, datetimes) values " +
+                "(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)", 1);
+        query("select * from longitable", 1);
+        MaterializedRow row = res.getMaterializedRows().get(0);
+        assertFalse((boolean) row.getField(0));
+        assertEquals((byte) 0, row.getField(1));
+        assertNull(row.getField(2));
+        assertNull(row.getField(3));
+        assertNull(row.getField(4));
+        assertNull(row.getField(5));
+        assertNull(row.getField(6));
+        assertEquals(" ", row.getField(7));
+        assertNull(row.getField(8));
+        assertEquals("", row.getField(9));
+        assertNull(row.getField(10));
+        assertNull(row.getField(11));
+        assertNull(row.getField(12));
+    }
+
+    @Test
+    public void testInsertCaseSensitive() {
+        query("insert into CaseITable (Num, Sym) values (1, 'ibm'), (2, 'msft')");
+        query("select sym from caseitable", 2);
+        assertEquals(Set.of("ibm", "msft"), res.getOnlyColumnAsSet());
+    }
+
+    @Test
+    public void testInsertNamespace() {
+        query("insert into kdb.myns.instable values (1, 'ibm'), (2, 'msft')");
+        query("select sym from kdb.myns.instable", 2);
+        assertEquals(Set.of("ibm", "msft"), res.getOnlyColumnAsSet());
+    }
+
+    @Test
+    public void testInsertWithTypes() {
+        query("insert into longitable (booleans, bytes, shorts, ints, longs, reals, floats, chars, syms, strings, dates, timestamps, datetimes) values " +
+                "(TRUE, 1, 10, 100, 1000, 0.1, 0.01, 'c', 'ibm', 'hello', date '2022-01-01', TIMESTAMP '2022-01-01 01:00:00', TIMESTAMP '2022-01-01 02:00:00')", 1);
+
+        query("select * from longitable", 1);
+        MaterializedRow row = res.getMaterializedRows().get(0);
+        assertEquals(true, row.getField(0));
+        assertEquals((byte) 1, row.getField(1));
+        assertEquals((short) 10, row.getField(2));
+        assertEquals(100, row.getField(3));
+        assertEquals(1000L, row.getField(4));
+        assertEquals(0.1, (double) row.getField(5), 0.0001);
+        assertEquals(0.01, (double) row.getField(6), 0.0001);
+        assertEquals("c", row.getField(7));
+        assertEquals("ibm", row.getField(8));
+        assertEquals("hello", row.getField(9));
+        assertEquals(LocalDate.of(2022, 1, 1), row.getField(10));
+        assertEquals(LocalDateTime.of(2022, 1, 1, 1, 0), row.getField(11));
+        assertEquals(LocalDateTime.of(2022, 1, 1, 2, 0), row.getField(12));
+    }
+
+    @Test
+    public void testNotAllowedInsertIntoPartitioned() {
+        try {
+            query("insert into partition_table select * from partition_table", 3);
+            fail("Expected to fail");
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().contains("KDB connector does not support insert into partitioned table"));
+        }
+    }
+
+    @Test
+    public void testLargeInsert() {
+        query("insert into itable select num, sym from \"([] num: til 1000000; sym: 1000000#`ibm)\"");
+        query("select count(*) from itable", 1);
+        assertEquals(1000000L, res.getOnlyValue());
+    }
+
+    @Test
+    public void testInsertIntoKeyedTable() {
+        query("insert into ikeytable (sym, num) values ('ibm', 1), ('msft', 2)");
+        query("select sym from ikeytable", 2);
+        assertEquals(Set.of("ibm", "msft"), res.getOnlyColumnAsSet());
+    }
+
 
     private static String lastQuery = null;
     private MaterializedResult res;

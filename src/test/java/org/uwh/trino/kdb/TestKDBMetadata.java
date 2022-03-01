@@ -54,7 +54,8 @@ public class TestKDBMetadata {
         List<SchemaTableName> tables = sut.listTables(session, Optional.empty());
 
         // SchemaTableName always lower cases - no way to work around :(
-        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table", "partition_table", "casesensitivetable");
+        Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table", "partition_table", "casesensitivetable",
+                "itable", "longitable", "caseitable", "ikeytable");
 
         assertEquals(tables.size(), expected.size());
         assertEquals(tables.stream().map(SchemaTableName::getTableName).collect(Collectors.toSet()), expected);
@@ -63,7 +64,7 @@ public class TestKDBMetadata {
     @Test
     public void testListTablesInSchema() {
         List<SchemaTableName> tables = sut.listTables(session, Optional.of("myns"));
-        Set<String> expected = Set.of("atable", "btable", "ctable");
+        Set<String> expected = Set.of("atable", "btable", "ctable", "instable");
         assertEquals(tables.size(), expected.size());
         assertEquals(tables.stream().map(SchemaTableName::getTableName).collect(Collectors.toSet()), expected);
     }

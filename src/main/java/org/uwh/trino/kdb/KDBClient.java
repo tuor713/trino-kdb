@@ -70,6 +70,23 @@ public class KDBClient {
         }
     }
 
+    private Object exec(String expr, Object arg) throws Exception {
+        if (connection == null) {
+            connect();
+        }
+
+        try {
+            LOGGER.info("KDB query: "+expr);
+            return connection.k(expr, arg);
+            // SocketException & EOFEXception
+        } catch (IOException e) {
+            // happens when connection has been lost, for example KDB process restarted
+            // try reconnect
+            connect();
+            return connection.k(expr, arg);
+        }
+    }
+
     public List<String> listNamespaces() throws Exception {
         String[] res = (String[]) exec("exec distinct ns from (uj/) ({[ns] ns:`$\".\", string ns; ts: tables ns; ([] ns:(count ts)#ns; table:ts)} each ((enlist `) , key `))");
         return Arrays.stream(res).map(ns -> ns.substring(1)).collect(Collectors.toList());
@@ -165,6 +182,18 @@ public class KDBClient {
         }
 
         return builder.build();
+    }
+
+    public void writeData(String table, List<KDBColumnHandle> columns, Page page) throws Exception {
+        c.Dict dict = new c.Dict(
+                columns.stream().map(KDBColumnHandle::getName).toArray(String[]::new),
+                IntStream.range(0, page.getChannelCount()).mapToObj(idx -> {
+                    KDBColumnHandle col = columns.get(idx);
+                    return col.getKdbType().readBlock(page.getBlock(idx));
+                }).toArray());
+        c.Flip flip = new c.Flip(dict);
+
+        exec("insert[`"+table+";]", flip);
     }
 
     private Optional<TableStatistics> getPregeneratedStats(KDBTableHandle table) throws Exception {
