@@ -16,6 +16,6 @@ public class KDBPageSinkProvider implements ConnectorPageSinkProvider {
 
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle insertTableHandle) {
-        return new KDBPageSink(client, (KDBOutputTableHandle) insertTableHandle);
+        return new KDBPageSink(client, (KDBOutputTableHandle) insertTableHandle, session.getProperty(Config.SESSION_INSERT_FUNCTION, String.class));
     }
 }

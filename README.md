@@ -41,6 +41,7 @@ Settings that can be used in catalog file:
 | `kdb.metadata.refresh.interval.seconds` | _(Optional)_ Refresh interval, in seconds, for KDB metadata (default: 3600 = 1 hour) |
 | `push.down.aggregation` | _(Optional)_ Enable aggregation push down (default: true) |
 | `virtual.tables` | _(Optional)_ Treat all tables as virtual - not supporting features such as direct `select [x]` queries (default: false) |
+| `insert.function` | _(Optional)_ Insert function to use to insert data into KDB tables (default: insert) |
 
 #### Session Property overrides
 
@@ -50,6 +51,7 @@ Settings that can be used in catalog file:
 | `use_stats` | Catalog property `use.stats` |
 | `page_size` | Catalog property `page.size` |
 | `virtual_tables` | Catalog property `virtual.tables` |
+| `insert_function` | Catalog property `insert.function` |
 
 ### Pre-Generated Stats
 

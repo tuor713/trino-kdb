@@ -184,7 +184,7 @@ public class KDBClient {
         return builder.build();
     }
 
-    public void writeData(String table, List<KDBColumnHandle> columns, Page page) throws Exception {
+    public void writeData(String table, List<KDBColumnHandle> columns, Page page, String insertFunction) throws Exception {
         c.Dict dict = new c.Dict(
                 columns.stream().map(KDBColumnHandle::getName).toArray(String[]::new),
                 IntStream.range(0, page.getChannelCount()).mapToObj(idx -> {
@@ -193,7 +193,7 @@ public class KDBClient {
                 }).toArray());
         c.Flip flip = new c.Flip(dict);
 
-        exec("insert[`"+table+";]", flip);
+        exec(insertFunction + "[`"+table+";]", flip);
     }
 
     private Optional<TableStatistics> getPregeneratedStats(KDBTableHandle table) throws Exception {

@@ -13,10 +13,12 @@ public class KDBPageSink implements ConnectorPageSink {
 
     private final KDBClient client;
     private final KDBOutputTableHandle table;
+    private final String insertFunction;
 
-    public KDBPageSink(KDBClient client, KDBOutputTableHandle table) {
+    public KDBPageSink(KDBClient client, KDBOutputTableHandle table, String insertFunction) {
         this.client = client;
         this.table = table;
+        this.insertFunction = insertFunction;
     }
 
     @Override
@@ -24,7 +26,7 @@ public class KDBPageSink implements ConnectorPageSink {
         System.out.println("XXX: appendPage: "+page);
 
         try {
-            client.writeData(table.getQualifiedTableName(), table.getColumns(), page);
+            client.writeData(table.getQualifiedTableName(), table.getColumns(), page, insertFunction);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

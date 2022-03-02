@@ -56,6 +56,8 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
                 " datetimes: `datetime$())");
         conn.k("CaseITable:([] Num:`long$(); Sym: `symbol$())");
         conn.k(".myns.instable:([] num:`long$(); sym: `symbol$())");
+        // inserts everything twice
+        conn.k("myupd:{[t; data] insert[t;data]; insert[t;data]}");
 
         conn.k(".myns.atable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
         conn.k(".myns.BTable:([] name:`Dent`Beeblebrox`Prefect`Marvin; iq:98 42 126 300)");
@@ -638,6 +640,14 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     public void testInsertIntoKeyedTable() {
         query("insert into ikeytable (sym, num) values ('ibm', 1), ('msft', 2)");
         query("select sym from ikeytable", 2);
+        assertEquals(Set.of("ibm", "msft"), res.getOnlyColumnAsSet());
+    }
+
+    @Test
+    public void testInsertCustomInsertFunction() {
+        Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "insert_function", "myupd").build();
+        query(session, "insert into itable (sym, num) values ('ibm', 1), ('msft', 2)");
+        query("select sym from itable", 4);
         assertEquals(Set.of("ibm", "msft"), res.getOnlyColumnAsSet());
     }
 

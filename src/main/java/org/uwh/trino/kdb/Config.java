@@ -30,6 +30,11 @@ public class Config {
     public static final String DEFAULT_VIRTUAL_TABLES = "false";
     public static final String SESSION_VIRTUAL_TABLES = "virtual_tables";
 
+    public static final String KDB_INSERT_FUNCTION = "insert.function";
+    public static final String DEFAULT_INSERT_FUNCTION = "insert";
+    public static final String SESSION_INSERT_FUNCTION = "insert_function";
+
+
     private final Map<String,String> config;
 
     public Config(Map<String,String> config) {
@@ -41,7 +46,8 @@ public class Config {
                 PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", pushDownAggregation(), false),
                 PropertyMetadata.booleanProperty(SESSION_USE_STATS, "Use statistics", useStats(), false),
                 PropertyMetadata.integerProperty(SESSION_PAGE_SIZE, "Page size for sourcing KDB data in rows", getPageSize(), false),
-                PropertyMetadata.booleanProperty(SESSION_VIRTUAL_TABLES, "Treat tables as virtual tables", getVirtualTables(), false)
+                PropertyMetadata.booleanProperty(SESSION_VIRTUAL_TABLES, "Treat tables as virtual tables", getVirtualTables(), false),
+                PropertyMetadata.stringProperty(SESSION_INSERT_FUNCTION, "Insert function to use in KDB", getInsertFunction(), false)
         );
     }
 
@@ -80,5 +86,9 @@ public class Config {
 
     public boolean getVirtualTables() {
         return Boolean.parseBoolean(config.getOrDefault(KDB_VIRTUAL_TABLES, DEFAULT_VIRTUAL_TABLES));
+    }
+
+    public String getInsertFunction() {
+        return config.getOrDefault(KDB_INSERT_FUNCTION, DEFAULT_INSERT_FUNCTION);
     }
 }
