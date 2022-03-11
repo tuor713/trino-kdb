@@ -486,6 +486,9 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
 
         query("select sym from \"([] sym:(`with; `space; `$\"\"with space\"\"))\" where sym in ('with', 'with space')", 2);
         assertEquals(res.getOnlyColumnAsSet(), Set.of("with", "with space"));
+
+        query("select sym from \"([] sym:(`with; `space; `$\"\"with-dash\"\"))\" where sym = 'with-dash'", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("with-dash"));
     }
 
     @Test
