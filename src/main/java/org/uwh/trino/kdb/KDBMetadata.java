@@ -8,13 +8,23 @@ import io.airlift.slice.Slice;
 import io.trino.spi.connector.*;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
+import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.TableStatistics;
+import io.trino.sql.planner.ExpressionInterpreter;
+import io.trino.sql.planner.LayoutConstraintEvaluator;
+import io.trino.sql.planner.iterative.rule.PushPredicateIntoTableScan;
+import io.trino.sql.tree.Expression;
+import io.trino.sql.tree.LikePredicate;
+import io.trino.sql.tree.StringLiteral;
+import io.trino.sql.tree.SymbolReference;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -217,7 +227,7 @@ public class KDBMetadata implements ConnectorMetadata {
         }
 
         return Optional.of(new LimitApplicationResult<>(
-                new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions()),
+                new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), khandle.getConstraint(), OptionalLong.of(limit), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions(), khandle.getExtraFilters()),
                 // for partitioned table since partitions are limited individually the limit is not guaranteed
                 !khandle.isPartitioned(),
                 false
@@ -229,13 +239,93 @@ public class KDBMetadata implements ConnectorMetadata {
         KDBTableHandle khandle = (KDBTableHandle) handle;
         TupleDomain<ColumnHandle> current = khandle.getConstraint();
         TupleDomain<ColumnHandle> next = current.intersect(constraint.getSummary());
+
+        if (session.getProperty(Config.SESSION_PUSH_DOWN_LIKE, Boolean.class)
+                && constraint.getSummary().isAll()
+                && constraint.predicate().isPresent()
+                && constraint.getPredicateColumns().isPresent()
+                && constraint.getPredicateColumns().get().size() == 1) {
+            return tryHandleLikePredicate(
+                    khandle,
+                    constraint.predicate().get(),
+                    (KDBColumnHandle) constraint.getPredicateColumns().get().stream().findFirst().get());
+        }
+
         if (current.equals(next)) {
             return Optional.empty();
         }
 
-        KDBTableHandle newHandle = new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions());
+        KDBTableHandle newHandle = new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions(), khandle.getExtraFilters());
 
         return Optional.of(new ConstraintApplicationResult<>(newHandle, TupleDomain.all(), false));
+    }
+
+    private Optional<ConstraintApplicationResult<ConnectorTableHandle>> tryHandleLikePredicate(KDBTableHandle table, Predicate<Map<ColumnHandle, NullableValue>> predicate, KDBColumnHandle column) {
+        Optional<LikePredicate> expr = extractLikeExpression(predicate);
+        if (expr.isEmpty()) {
+            return Optional.empty();
+        }
+
+        LikePredicate like = expr.get();
+
+        // Don't handle escape characters for now
+        if (like.getEscape().isPresent()) {
+            return Optional.empty();
+        }
+
+        // only apply like push down to vanilla 'x like <pattern>' not functional expressions
+        // such as 'lower(x) like <pattern>'
+        if (!(like.getValue() instanceof SymbolReference)) {
+            return Optional.empty();
+        }
+
+        Expression pattern = like.getPattern();
+        if (!(pattern instanceof StringLiteral)) {
+            return Optional.empty();
+        }
+
+        List<KDBFilter> extraFilters = new ArrayList<>(table.getExtraFilters());
+        extraFilters.add(new KDBFilter(column, ((StringLiteral) pattern).getValue()));
+
+        return Optional.of(
+                new ConstraintApplicationResult<>(
+                        new KDBTableHandle(
+                                table.getNamespace(),
+                                table.getTableName(),
+                                table.getConstraint(),
+                                table.getLimit(),
+                                table.isPartitioned(),
+                                table.getPartitionColumn(),
+                                table.getPartitions(),
+                                extraFilters
+                        ),
+                        TupleDomain.all(),
+                        false
+                )
+        );
+    }
+
+    private Optional<LikePredicate> extractLikeExpression(Predicate<Map<ColumnHandle, NullableValue>> predicate) {
+        try {
+            Field f = predicate.getClass().getDeclaredField("arg$1");
+            f.setAccessible(true);
+            Object arg = f.get(predicate);
+            if (arg instanceof LayoutConstraintEvaluator) {
+                Field f2 = LayoutConstraintEvaluator.class.getDeclaredField("evaluator");
+                f2.setAccessible(true);
+                ExpressionInterpreter eval = (ExpressionInterpreter) f2.get(arg);
+                Field f3 = ExpressionInterpreter.class.getDeclaredField("expression");
+                f3.setAccessible(true);
+                Expression expr = (Expression) f3.get(eval);
+                if (expr instanceof LikePredicate) {
+                    return Optional.of((LikePredicate) expr);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return Optional.empty();
     }
 
     private static final Map<String,String> supported_functions = ImmutableMap.<String,String>builder()
@@ -337,7 +427,7 @@ public class KDBMetadata implements ConnectorMetadata {
         }
 
         AggregationApplicationResult<ConnectorTableHandle> result = new AggregationApplicationResult<>(
-                new KDBTableHandle(DEFAULT_NS, newQuery.toString(), TupleDomain.all(), OptionalLong.empty(), false, Optional.empty(), List.of()),
+                new KDBTableHandle(DEFAULT_NS, newQuery.toString(), TupleDomain.all(), OptionalLong.empty(), false, Optional.empty(), List.of(), List.of()),
                 projections,
                 projections.stream().map(v -> {
                     Variable var = (Variable) v;

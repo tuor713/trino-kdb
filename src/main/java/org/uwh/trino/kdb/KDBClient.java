@@ -125,7 +125,7 @@ public class KDBClient {
             }
         }
 
-        return new KDBTableHandle(namespace, name, TupleDomain.all(), OptionalLong.empty(), isPartitioned, partitionColumn, partitions);
+        return new KDBTableHandle(namespace, name, TupleDomain.all(), OptionalLong.empty(), isPartitioned, partitionColumn, partitions, List.of());
     }
 
     public List<ColumnMetadata> getTableMeta(KDBTableHandle handle) throws Exception {

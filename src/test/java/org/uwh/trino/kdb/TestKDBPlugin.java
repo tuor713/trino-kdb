@@ -491,6 +491,65 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         assertEquals(res.getOnlyColumnAsSet(), Set.of("with-dash"));
     }
 
+    private void testLikePattern(String syms, String pattern, boolean expectLike) {
+        String sql = "select sym from \"([] sym:"+syms + ")\" where sym like '" + pattern + "'";
+        Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "push_down_like", "false").build();
+        Set oracle = computeActual(session, sql).getOnlyColumnAsSet();
+        assertFalse(lastQuery.contains("like"));
+        session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "push_down_like", "true").build();
+        Set sut = computeActual(session, sql).getOnlyColumnAsSet();
+        assertEquals(lastQuery.contains("like"), expectLike);
+        System.out.println(oracle + " vs " + sut);
+        assertEquals(sut, oracle);
+    }
+
+    @Test
+    public void testLikeQuery() {
+        Session session = Session.builder(getSession()).setCatalogSessionProperty("kdb", "push_down_like", "true").build();
+        query(session, "select sym from \"([] sym:`with`without`out)\" where sym like '%with%'", 2);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("with", "without"));
+        assertTrue(lastQuery.contains("sym like \"*with*\""));
+
+        query(session, "select s from \"([] s:(\"\"with\"\"; \"\"without\"\"; \"\"out\"\"))\" where s like '%with%'", 2);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("with", "without"));
+        assertTrue(lastQuery.contains("s like \"*with*\""));
+
+        query(session, "select sym from \"([] sym:`with`without`out)\" where sym not like '%with%'", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("out"));
+        assertFalse(lastQuery.contains("like"));
+
+        query(session, "select sym from \"([] sym:`wit_out`without)\" where sym like 'wit$_out' ESCAPE '$'", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("wit_out"));
+        assertFalse(lastQuery.contains("like"));
+
+        query(session, "select sym from \"([] sym:`\\U\\P\\P\\E\\R`lower)\" where upper(sym) like '%ER'", 2);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("UPPER", "lower"));
+        assertFalse(lastQuery.contains("like"));
+
+        query(session, "select sym from \"([] sym:`with`without`out)\" where sym like '%wi%' and sym like '%out'", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("without"));
+        // Not yet supported -> two likes get passed into the ConnectorMetadata as a LogicalExpression[AND] of two LikeExpressions
+        assertFalse(lastQuery.contains("like"));
+
+        // special case 'wi%' gets translated into >= wi, < wj
+        query(session, "select sym from \"([] sym:`with`without`out)\" where sym like 'wi%' and sym like '%out'", 1);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("without"));
+
+        // special case 'wi%' gets translated into >= wi, < wj, for strings
+        query(session, "select s from \"([] s:(\"\"with\"\"; \"\"without\"\"; \"\"out\"\"))\" where s like 'wi%'", 2);
+        assertEquals(res.getOnlyColumnAsSet(), Set.of("with", "without"));
+
+        testLikePattern("`with`without`out", "_ith", true);
+        testLikePattern("(`a; `$\"\"symbol*\"\")", "%*", true);
+        testLikePattern("(`ab; `$\"\"symbol?\"\")", "%?", true);
+        testLikePattern("(`ab; `$\"\"hello \\\\\"\" world\"\")", "%\"%", true);
+        testLikePattern("(`ab; `$\"\"symbol[\"\")", "%[", true);
+        testLikePattern("(`ab; `$\"\"symbol]\"\")", "%]", true);
+        // trino converts this into an '=' operator
+        testLikePattern("`a`b`c", "a", false);
+        testLikePattern("`\\U\\P\\P\\E\\R`lower", "%ER", true);
+    }
+
     @Test
     public void testPartitionedTableQuerySplit() {
         query("select * from partition_table", 12);

@@ -34,6 +34,9 @@ public class Config {
     public static final String DEFAULT_INSERT_FUNCTION = "insert";
     public static final String SESSION_INSERT_FUNCTION = "insert_function";
 
+    public static final String KDB_PUSH_DOWN_LIKE = "push.down.like";
+    public static final String DEFAULT_PUSH_DOWN_LIKE = "false";
+    public static final String SESSION_PUSH_DOWN_LIKE = "push_down_like";
 
     private final Map<String,String> config;
 
@@ -47,7 +50,8 @@ public class Config {
                 PropertyMetadata.booleanProperty(SESSION_USE_STATS, "Use statistics", useStats(), false),
                 PropertyMetadata.integerProperty(SESSION_PAGE_SIZE, "Page size for sourcing KDB data in rows", getPageSize(), false),
                 PropertyMetadata.booleanProperty(SESSION_VIRTUAL_TABLES, "Treat tables as virtual tables", getVirtualTables(), false),
-                PropertyMetadata.stringProperty(SESSION_INSERT_FUNCTION, "Insert function to use in KDB", getInsertFunction(), false)
+                PropertyMetadata.stringProperty(SESSION_INSERT_FUNCTION, "Insert function to use in KDB", getInsertFunction(), false),
+                PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_LIKE, "Push down like filter expressions", pushDownLike(), false)
         );
     }
 
@@ -90,5 +94,9 @@ public class Config {
 
     public String getInsertFunction() {
         return config.getOrDefault(KDB_INSERT_FUNCTION, DEFAULT_INSERT_FUNCTION);
+    }
+
+    public boolean pushDownLike() {
+        return Boolean.parseBoolean(config.getOrDefault(KDB_PUSH_DOWN_LIKE, DEFAULT_PUSH_DOWN_LIKE));
     }
 }

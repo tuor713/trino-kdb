@@ -32,7 +32,8 @@ public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
                     tHandle.getLimit(),
                     tHandle.isPartitioned(),
                     tHandle.getPartitionColumn(),
-                    tHandle.getPartitions());
+                    tHandle.getPartitions(),
+                    tHandle.getExtraFilters());
         }
 
         return new KDBPageSource(client, tHandle, tColumns, session.getProperty(Config.SESSION_PAGE_SIZE, Integer.class), session.getProperty(Config.SESSION_VIRTUAL_TABLES, Boolean.class));

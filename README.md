@@ -1,8 +1,9 @@
 ## Trino Plugin for kdb+
  
-A simple [Trino](https://trino.io) plugin for [kdb+](https://code.kx.com/q/learn/) - currently in beta state. 
+A [Trino](https://trino.io) plugin for [kdb+](https://code.kx.com/q/learn/) - currently in beta state. 
+Feedback (bugs, feature requests, questions) welcome!
 
-A sample catalog definition should look like:
+Sample catalog definition:
 
 ```
 connector.name=kdb
@@ -18,6 +19,9 @@ The plugin currently supports:
   - Inside dynamic queries upper case letters must be escaped as \\\<letter> since Trino converts all "table names" to lower case
 - Basic schema introspection
 - Limited filter and limit pass through
+  - Experimental support for `like '<pattern>'` push down (see `push.down.like` property). 
+    Support is limited: cases with special escape characters, multiple like expressions on the same
+    column for example will not be pushed down.
 - Aggregation push down for count, sum, max, min, stddev, variance, count_if, bool_and, bool_or
 - Supports tables in nested namespaces
 - *(Alpha)* Insertion support for plain in-memory tables
@@ -42,16 +46,18 @@ Settings that can be used in catalog file:
 | `push.down.aggregation` | _(Optional)_ Enable aggregation push down (default: true) |
 | `virtual.tables` | _(Optional)_ Treat all tables as virtual - not supporting features such as direct `select [x]` queries (default: false) |
 | `insert.function` | _(Optional)_ Insert function to use to insert data into KDB tables (default: insert) |
+| `push.down.like` | _(Optional, experimental)_ Push down like filters (default: false) | 
 
 #### Session Property overrides
 
-| Property | Default |
-| -------- | ------- |
-| `push_down_aggregation` | Catalog property `push.down.aggregation` |
-| `use_stats` | Catalog property `use.stats` |
-| `page_size` | Catalog property `page.size` |
-| `virtual_tables` | Catalog property `virtual.tables` |
-| `insert_function` | Catalog property `insert.function` |
+| Property | Default                                                       |
+| -------- |---------------------------------------------------------------|
+| `push_down_aggregation` | Session override for catalog property `push.down.aggregation` |
+| `use_stats` | Session override for catalog property `use.stats`           |
+| `page_size` | Session override for catalog property `page.size`           |
+| `virtual_tables` | Session override for catalog property `virtual.tables`      |
+| `insert_function` | Session override for catalog property `insert.function`                            |
+| `push_down_like` | Session override for catalog property `push.down.like`                             |
 
 ### Pre-Generated Stats
 

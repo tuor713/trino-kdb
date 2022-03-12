@@ -5,13 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.slice.Slice;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.type.BigintType;
 
-import javax.swing.text.html.Option;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -28,6 +25,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
     // Year represented as yyyy, month as yyyy.MM, date as yyyy.MM.dd inline with KDB representation
     private final List<String> partitions;
     private final Optional<KDBColumnHandle> partitionColumn;
+    private final List<KDBFilter> extraFilters;
 
     @JsonCreator
     public KDBTableHandle(@JsonProperty("namespace") String namespace,
@@ -36,7 +34,8 @@ public class KDBTableHandle implements ConnectorTableHandle {
                           @JsonProperty("limit") OptionalLong limit,
                           @JsonProperty("isPartitioned") boolean isPartitioned,
                           @JsonProperty("partitionColumn") Optional<KDBColumnHandle> partitionColumn,
-                          @JsonProperty("partitions") List<String> partitions) {
+                          @JsonProperty("partitions") List<String> partitions,
+                          @JsonProperty("extraFilters") List<KDBFilter> extraFilters) {
         this.namespace = namespace;
         this.tableName = tableName;
         this.constraint = constraint;
@@ -44,6 +43,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
         this.isPartitioned = isPartitioned;
         this.partitionColumn = partitionColumn;
         this.partitions = partitions;
+        this.extraFilters = extraFilters;
     }
 
     @JsonProperty
@@ -84,6 +84,9 @@ public class KDBTableHandle implements ConnectorTableHandle {
     public Optional<KDBColumnHandle> getPartitionColumn() {
         return partitionColumn;
     }
+
+    @JsonProperty("extraFilters")
+    public List<KDBFilter> getExtraFilters() { return extraFilters; }
 
     public boolean isQuery() {
         return isQuery(tableName);
@@ -136,7 +139,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
     }
 
     public Optional<String> getWhereClause() {
-        String filter = constructFilters(constraint);
+        String filter = constructFilters(constraint, extraFilters);
         if (filter != null) {
             return Optional.of(filter);
         } else {
@@ -185,10 +188,28 @@ public class KDBTableHandle implements ConnectorTableHandle {
                     disjuncts.add(column.getName() + " within " + formatKDBValue(KDBType.Date, lower) + " " + formatKDBValue(KDBType.Date, upper));
                 } else {
                     if (!range.isLowUnbounded()) {
-                        conds.add(column.getName() + (range.isLowInclusive() ? " >= " : " > ") + formatKDBValue(column.getKdbType(), range.getLowValue().get()));
+                        if (column.getKdbType() != KDBType.String) {
+                            conds.add(column.getName() + (range.isLowInclusive() ? " >= " : " > ") + formatKDBValue(column.getKdbType(), range.getLowValue().get()));
+                        } else {
+                            // Strings don't support comparison, cast to symbol instead
+                            // https://stackoverflow.com/questions/57176867/compare-if-one-string-is-greater-than-another-in-kdb
+                            conds.add(
+                                    "(`$"+column.getName() + ")" +
+                                    (range.isLowInclusive() ? " >= " : " > ") +
+                                    formatKDBValue(KDBType.Symbol, range.getLowValue().get())
+                            );
+                        }
                     }
                     if (!range.isHighUnbounded()) {
-                        conds.add(column.getName() + (range.isHighInclusive() ? " <= " : " < ") + formatKDBValue(column.getKdbType(), range.getHighValue().get()));
+                        if (column.getKdbType() != KDBType.String) {
+                            conds.add(column.getName() + (range.isHighInclusive() ? " <= " : " < ") + formatKDBValue(column.getKdbType(), range.getHighValue().get()));
+                        } else {
+                            conds.add(
+                                    "(`$" + column.getName() + ")" +
+                                    (range.isHighInclusive() ? " <= " : " < ") +
+                                    formatKDBValue(KDBType.Symbol, range.getHighValue().get())
+                            );
+                        }
                     }
                     if (conds.size() > 1) {
                         disjuncts.add("(" + conds.get(0) + ") & (" + conds.get(1) + ")");
@@ -228,8 +249,8 @@ public class KDBTableHandle implements ConnectorTableHandle {
         return 0;
     }
 
-    public static String constructFilters(TupleDomain<ColumnHandle> domain) {
-        if (domain.isAll()) {
+    public static String constructFilters(TupleDomain<ColumnHandle> domain, List<KDBFilter> extraFilters) {
+        if (domain.isAll() && extraFilters.isEmpty()) {
             return null;
         } else if (domain.isNone()) {
             // impossible constraint
@@ -253,7 +274,20 @@ public class KDBTableHandle implements ConnectorTableHandle {
             conditions.put(col, constructFilter(col, e.getValue()));
         }
 
+        for (KDBFilter e : extraFilters) {
+            String filter = e.toKDBFilter();
+            if (conditions.containsKey(e.getColumn())) {
+                conditions.put(e.getColumn(), conditions.get(e.getColumn()) + ", " + filter);
+            } else {
+                conditions.put(e.getColumn(), filter);
+            }
+        }
+
         return String.join(", ", conditions.values());
+    }
+
+    private static String constructLikeFilter(KDBColumnHandle column, String pattern) {
+        return column.getName() + " like \"" + pattern + "\"";
     }
 
     @Override
@@ -266,6 +300,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
                 ", isPartitioned=" + isPartitioned +
                 ", partitions=" + partitions +
                 ", partitionColumn=" + partitionColumn +
+                ", extraFilters=" + extraFilters +
                 '}';
     }
 }
