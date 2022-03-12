@@ -23,8 +23,6 @@ public class KDBPageSink implements ConnectorPageSink {
 
     @Override
     public CompletableFuture<?> appendPage(Page page) {
-        System.out.println("XXX: appendPage: "+page);
-
         try {
             client.writeData(table.getQualifiedTableName(), table.getColumns(), page, insertFunction);
         } catch (Exception e) {
