@@ -155,6 +155,9 @@ public class KDBTableHandle implements ConnectorTableHandle {
     // https://code.kx.com/q/basics/syntax/#names-and-namespaces
     private static final Predicate<String> VALID_NAME = Pattern.compile("^[.a-zA-Z][._a-zA-Z0-9]*$").asPredicate();
 
+    private static final long MILLS_IN_DAY = 86400000L;
+    private static final long MILLS_BETWEEN_1970_2000=MILLS_IN_DAY*10957;
+
     private static String formatKDBValue(KDBType type, Object value) {
         if (type == KDBType.String) {
             String s = ((Slice) value).toStringUtf8();
@@ -166,6 +169,18 @@ public class KDBTableHandle implements ConnectorTableHandle {
         } else if (type == KDBType.Date) {
             LocalDate date = LocalDate.ofEpochDay((long) value);
             return date.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+        } else if (type == KDBType.Time) {
+            return "(`time$" + (((long) value) / 1_000_000_000L) + ")";
+        } else if (type == KDBType.Timestamp) {
+            long inputMsEpoch = (long) value;
+            long kdbTs = inputMsEpoch * 1000 - MILLS_BETWEEN_1970_2000 * 1_000_000;
+            return "(`timestamp$" + kdbTs + ")";
+        } else if (type == KDBType.DateTime) {
+            long inputMsEpoch = (long) value;
+            long kdbTs = inputMsEpoch*1000 - MILLS_BETWEEN_1970_2000 * 1_000_000;
+            return "(`datetime$`timestamp$" + kdbTs + ")";
+        } else if (type == KDBType.Boolean) {
+            return ((boolean) value) ? "1b" : "0b";
         } else if (value instanceof Slice) {
             Slice s = (Slice) value;
             return VALID_NAME.test(s.toStringUtf8()) ? "`" + s.toStringUtf8() : "`$\"" + s.toStringUtf8() + "\"";

@@ -14,7 +14,6 @@ import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.sql.planner.ExpressionInterpreter;
 import io.trino.sql.planner.LayoutConstraintEvaluator;
-import io.trino.sql.planner.iterative.rule.PushPredicateIntoTableScan;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.LikePredicate;
 import io.trino.sql.tree.StringLiteral;
@@ -234,10 +233,28 @@ public class KDBMetadata implements ConnectorMetadata {
         ));
     }
 
+    private static Set<KDBType> SUPPORTED_FILTER_TYPES = Set.of(
+            KDBType.String, KDBType.Symbol,
+            KDBType.Date, KDBType.Time, KDBType.Timestamp, KDBType.DateTime,
+            KDBType.Float, KDBType.Real,
+            KDBType.Long, KDBType.Int, KDBType.Short, KDBType.Byte,
+            KDBType.Boolean);
+
+    private boolean allFilterColumnsSupported(Constraint constraint) {
+        return constraint.getSummary().getDomains().orElseGet(() -> Map.of())
+                .keySet().stream()
+                .allMatch(col -> SUPPORTED_FILTER_TYPES.contains(((KDBColumnHandle) col).getKdbType()));
+    }
+
     @Override
     public Optional<ConstraintApplicationResult<ConnectorTableHandle>> applyFilter(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint) {
         KDBTableHandle khandle = (KDBTableHandle) handle;
         TupleDomain<ColumnHandle> current = khandle.getConstraint();
+
+        if (!allFilterColumnsSupported(constraint)) {
+            return Optional.empty();
+        }
+
         TupleDomain<ColumnHandle> next = current.intersect(constraint.getSummary());
 
         if (session.getProperty(Config.SESSION_PUSH_DOWN_LIKE, Boolean.class)

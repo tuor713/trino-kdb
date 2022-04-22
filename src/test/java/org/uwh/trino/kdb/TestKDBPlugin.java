@@ -713,6 +713,42 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         assertEquals(Set.of("ibm", "msft"), res.getOnlyColumnAsSet());
     }
 
+    @Test
+    public void testTypesInFilter() {
+        query("select * from \"([] sym: `a`b`c; time:`time$(09:00:00; 12:00:00; 15:00:00))\" where time <= TIME '13:00'", 2);
+        assertTrue(lastQuery.contains("time <="));
+
+        query("select * from \"([] sym: `a`b`c; month:(2020.02m; 2021.02m; 2022.02m))\" where month <= '2021-05'", 2);
+        assertFalse(lastQuery.contains("month <="));
+
+        query("select * from \"([] sym: `a`b`c; bs: 110b)\" where bs = TRUE", 2);
+        query("select * from \"([] sym: `a`b`c; bs: 110b)\" where bs = FALSE", 1);
+        assertTrue(lastQuery.contains("bs = 0b"));
+
+        query("select * from \"([] sym: `a`b`c; num:(1.0; 2.0; 3.0))\" where num < 2.5", 2);
+        assertTrue(lastQuery.contains("num <"));
+
+        query("select * from \"([] sym: `a`b`c; num:`real$(1.0; 2.0; 3.0))\" where num < 2.5", 2);
+        assertTrue(lastQuery.contains("num <"));
+
+        query("select * from \"([] sym: `a`b`c; num:(1; 2; 3))\" where num <= 2", 2);
+        assertTrue(lastQuery.contains("num <="));
+
+        query("select * from \"([] sym: `a`b`c; num:`int$(1; 2; 3))\" where num <= 2", 2);
+        assertTrue(lastQuery.contains("num <="));
+
+        query("select * from \"([] sym: `a`b`c; num:`short$(1; 2; 3))\" where num <= 2", 2);
+        assertTrue(lastQuery.contains("num <="));
+
+        query("select * from \"([] sym: `a`b`c; num:`byte$(1; 2; 3))\" where num <= 2", 2);
+        assertTrue(lastQuery.contains("num <="));
+
+        query("select * from \"([] sym: `a`b`c; t:(2000.01.01\\D00:00:00; 2010.01.01\\D00:00:00; 2020.01.01\\D00:00:00))\" where t <= TIMESTAMP '2015-01-01 00:00'", 2);
+        assertTrue(lastQuery.contains("t <= "));
+
+        query("select * from \"([] sym: `a`b`c; t:(2000.01.01\\T00:00:00; 2010.01.01\\T00:00:00; 2020.01.01\\T00:00:00))\" where t <= TIMESTAMP '2015-01-01 00:00'", 2);
+        assertTrue(lastQuery.contains("t <= "));
+    }
 
     private static String lastQuery = null;
     private MaterializedResult res;
