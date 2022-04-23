@@ -34,19 +34,20 @@ The plugin currently supports:
 
 Settings that can be used in catalog file:
 
-| Config | Description |
-| ----- | ----------- |
-| `kdb.host` | Hostname of KDB server | 
-| `kdb.port` | Port of KDB server | 
-| `kdb.user` | _(Optional)_ User for authenticating with KDB server | 
-| `kdb.password` | _(Optional)_ Password for authenticating with KDB server | 
-| `page.size` | _(Optional)_ Size of pages (in number of rows) retrieved from KDB (default: 50,000) |
-| `use.stats` | _(Optional)_ Calculate stats for KDB tables, on the fly and cached in memory (default: true) |
-| `kdb.metadata.refresh.interval.seconds` | _(Optional)_ Refresh interval, in seconds, for KDB metadata (default: 3600 = 1 hour) |
-| `push.down.aggregation` | _(Optional)_ Enable aggregation push down (default: true) |
-| `virtual.tables` | _(Optional)_ Treat all tables as virtual - not supporting features such as direct `select [x]` queries (default: false) |
-| `insert.function` | _(Optional)_ Insert function to use to insert data into KDB tables (default: insert) |
-| `push.down.like` | _(Optional, experimental)_ Push down like filters (default: false) | 
+| Config | Description                                                                                                                                                  |
+| ----- |--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `kdb.host` | Hostname of KDB server                                                                                                                                       | 
+| `kdb.port` | Port of KDB server                                                                                                                                           | 
+| `kdb.user` | _(Optional)_ User for authenticating with KDB server                                                                                                         | 
+| `kdb.password` | _(Optional)_ Password for authenticating with KDB server                                                                                                     | 
+| `page.size` | _(Optional)_ Size of pages (in number of rows) retrieved from KDB (default: 50,000)                                                                          |
+| `use.stats` | _(Optional)_ Support stats for KDB either pre-generated or calculated on the fly (see `dynamic.stats`) (default: true)                                       |
+| `dynamic.stats` | _(Optional)_ Support on the fly stats generation. Note this can have a detrimental effect on query planning speed for large tables (default: false) |                   
+| `kdb.metadata.refresh.interval.seconds` | _(Optional)_ Refresh interval, in seconds, for KDB metadata (default: 3600 = 1 hour)                                                                         |
+| `push.down.aggregation` | _(Optional)_ Enable aggregation push down (default: true)                                                                                                    |
+| `virtual.tables` | _(Optional)_ Treat all tables as virtual - not supporting features such as direct `select [x]` queries (default: false)                                      |
+| `insert.function` | _(Optional)_ Insert function to use to insert data into KDB tables (default: insert)                                                                         |
+| `push.down.like` | _(Optional, experimental)_ Push down like filters (default: false)                                                                                           | 
 
 #### Session Property overrides
 
@@ -54,6 +55,7 @@ Settings that can be used in catalog file:
 | -------- |---------------------------------------------------------------|
 | `push_down_aggregation` | Session override for catalog property `push.down.aggregation` |
 | `use_stats` | Session override for catalog property `use.stats`           |
+| `dynamic_stats` | Session override for catalog property `dynamic.stats` |
 | `page_size` | Session override for catalog property `page.size`           |
 | `virtual_tables` | Session override for catalog property `virtual.tables`      |
 | `insert_function` | Session override for catalog property `insert.function`                            |

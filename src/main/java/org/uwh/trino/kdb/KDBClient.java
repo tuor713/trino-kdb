@@ -239,12 +239,14 @@ public class KDBClient {
         return Optional.of(builder.build());
     }
 
-    public TableStatistics getTableStatistics(KDBTableHandle table) throws Exception {
+    public TableStatistics getTableStatistics(KDBTableHandle table, boolean calcStatsOnTheFly) throws Exception {
         LOGGER.info("Collecting statistics for table " + table.getQualifiedTableName());
 
         Optional<TableStatistics> preGeneratedStats = getPregeneratedStats(table);
         if (preGeneratedStats.isPresent()) {
             return preGeneratedStats.get();
+        } else if (!calcStatsOnTheFly) {
+            return TableStatistics.empty();
         }
 
         long rows = (long) exec("count " + table.getQualifiedTableName());

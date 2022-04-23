@@ -28,7 +28,7 @@ public class TestKDBMetadata {
     public void setup() throws Exception {
         kx.c connection = new kx.c("localhost", 8000, "user:password");
         connection.k(".trino.touch:1");
-        Config cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true"));
+        Config cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true", Config.KDB_DYNAMIC_STATS, "true"));
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
         KDBClient client = new KDBClient("localhost", 8000, "user", "password");
         sut = new KDBMetadata(client, cfg, new StatsManager(client));
@@ -135,7 +135,14 @@ public class TestKDBMetadata {
         TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats, TableStatistics.empty());
 
+        // stats = true, dynanic stats = false
         cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true"));
+        session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
+        metadata = new KDBMetadata(client, cfg, new StatsManager(client));
+        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        assertEquals(stats, TableStatistics.empty());
+
+        cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true", Config.KDB_DYNAMIC_STATS, "true"));
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
         metadata = new KDBMetadata(client, cfg, new StatsManager(client));
         stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
@@ -144,6 +151,8 @@ public class TestKDBMetadata {
 
     @Test
     public void testPreGeneratedTableStats() throws Exception {
+        Config cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true", Config.KDB_DYNAMIC_STATS, "false"));
+        ConnectorSession session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
         kx.c connection = new kx.c("localhost", 8000, "user:password");
         connection.k(".trino.stats:([table:`atable`btable] rowcount:10000 20000)");
         connection.k(".trino.colstats:([table:`atable`atable; column:`name`iq] distinct_count:10000 5000; null_fraction: 0.0 0.0; size: 40000 80000; min_value: 0n 50.0; max_value: 0n 300.0)");

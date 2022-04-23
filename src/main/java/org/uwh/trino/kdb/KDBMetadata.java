@@ -469,7 +469,7 @@ public class KDBMetadata implements ConnectorMetadata {
         }
 
         try {
-            return stats.getTableStats(khandle);
+            return stats.getTableStats(khandle, session.getProperty(Config.SESSION_DYNAMIC_STATS, Boolean.class));
         } catch (Exception e) {
             return TableStatistics.empty();
         }

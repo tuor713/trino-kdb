@@ -19,6 +19,11 @@ public class Config {
     public static final String DEFAULT_USE_STATS = "true";
     public static final String SESSION_USE_STATS = "use_stats";
 
+    public static final String KDB_DYNAMIC_STATS = "dynamic.stats";
+    public static final String DEFAULT_DYNAMIC_STATS = "false";
+    public static final String SESSION_DYNAMIC_STATS = "use_dynamic_stats";
+
+
     public static final String KDB_METADATA_REFRESH_INTERVAL = "kdb.metadata.refresh.interval.seconds";
     public static final String DEFAULT_METADATA_REFRESH_INTERVAL = String.valueOf(60*60); // 1 hour
 
@@ -48,6 +53,7 @@ public class Config {
         return List.of(
                 PropertyMetadata.booleanProperty(SESSION_PUSH_DOWN_AGGREGATION, "Push down aggregations into KDB", pushDownAggregation(), false),
                 PropertyMetadata.booleanProperty(SESSION_USE_STATS, "Use statistics", useStats(), false),
+                PropertyMetadata.booleanProperty(SESSION_DYNAMIC_STATS, "Calculate stats dynamically for tables without pre-generated stats", useDynamicStats(),false),
                 PropertyMetadata.integerProperty(SESSION_PAGE_SIZE, "Page size for sourcing KDB data in rows", getPageSize(), false),
                 PropertyMetadata.booleanProperty(SESSION_VIRTUAL_TABLES, "Treat tables as virtual tables", getVirtualTables(), false),
                 PropertyMetadata.stringProperty(SESSION_INSERT_FUNCTION, "Insert function to use in KDB", getInsertFunction(), false),
@@ -78,6 +84,10 @@ public class Config {
 
     public boolean useStats() {
         return Boolean.parseBoolean(config.getOrDefault(KDB_USE_STATS_KEY, DEFAULT_USE_STATS));
+    }
+
+    public boolean useDynamicStats() {
+        return Boolean.parseBoolean(config.getOrDefault(KDB_DYNAMIC_STATS, DEFAULT_DYNAMIC_STATS));
     }
 
     public boolean pushDownAggregation() {

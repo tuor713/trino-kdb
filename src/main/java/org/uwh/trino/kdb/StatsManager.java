@@ -17,11 +17,11 @@ public class StatsManager {
         this.client = client;
     }
 
-    public TableStatistics getTableStats(KDBTableHandle table) {
+    public TableStatistics getTableStats(KDBTableHandle table, boolean calcStatsOnTheFly) {
         SchemaTableName fname = new SchemaTableName(KDBMetadata.resolveSchema(table.getNamespace()), table.getTableName());
         if (!cachedStats.containsKey(fname)) {
             try {
-                cachedStats.put(fname, client.getTableStatistics(table));
+                cachedStats.put(fname, client.getTableStatistics(table, calcStatsOnTheFly));
             } catch (Exception e) {
                 LOGGER.warn(e, "Exception collecting stats for table "+table);
                 return TableStatistics.empty();
