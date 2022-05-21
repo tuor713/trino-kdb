@@ -21,6 +21,7 @@ import io.trino.sql.tree.SymbolReference;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Predicate;
@@ -278,64 +279,78 @@ public class KDBMetadata implements ConnectorMetadata {
     }
 
     private Optional<ConstraintApplicationResult<ConnectorTableHandle>> tryHandleLikePredicate(KDBTableHandle table, Predicate<Map<ColumnHandle, NullableValue>> predicate, KDBColumnHandle column) {
-        Optional<LikePredicate> expr = extractLikeExpression(predicate);
+        Optional<Object> expr = extractLikeExpression(predicate);
         if (expr.isEmpty()) {
             return Optional.empty();
         }
 
-        LikePredicate like = expr.get();
+        Object like = expr.get();
+        try {
+            Method mGetEscape = like.getClass().getDeclaredMethod("getEscape");
+            Method mGetValue = like.getClass().getDeclaredMethod("getValue");
+            Method mGetPattern = like.getClass().getDeclaredMethod("getPattern");
 
-        // Don't handle escape characters for now
-        if (like.getEscape().isPresent()) {
-            return Optional.empty();
+            // Don't handle escape characters for now
+            if (((Optional<?>) mGetEscape.invoke(like)).isPresent()) {
+                return Optional.empty();
+            }
+
+            // only apply like push down to vanilla 'x like <pattern>' not functional expressions
+            // such as 'lower(x) like <pattern>'
+            Object value = mGetValue.invoke(like);
+            if (value == null || !value.getClass().getName().equals(SymbolReference.class.getName())) {
+                return Optional.empty();
+            }
+
+            Object pattern = mGetPattern.invoke(like);
+            if (!pattern.getClass().getName().equals(StringLiteral.class.getName())) {
+                return Optional.empty();
+            }
+
+            Method mStringLitGetValue = pattern.getClass().getDeclaredMethod("getValue");
+            List<KDBFilter> extraFilters = new ArrayList<>(table.getExtraFilters());
+            extraFilters.add(new KDBFilter(column, (String) mStringLitGetValue.invoke(pattern)));
+
+            return Optional.of(
+                    new ConstraintApplicationResult<>(
+                            new KDBTableHandle(
+                                    table.getNamespace(),
+                                    table.getTableName(),
+                                    table.getConstraint(),
+                                    table.getLimit(),
+                                    table.isPartitioned(),
+                                    table.getPartitionColumn(),
+                                    table.getPartitions(),
+                                    extraFilters
+                            ),
+                            TupleDomain.all(),
+                            false
+                    )
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
-        // only apply like push down to vanilla 'x like <pattern>' not functional expressions
-        // such as 'lower(x) like <pattern>'
-        if (!(like.getValue() instanceof SymbolReference)) {
-            return Optional.empty();
-        }
-
-        Expression pattern = like.getPattern();
-        if (!(pattern instanceof StringLiteral)) {
-            return Optional.empty();
-        }
-
-        List<KDBFilter> extraFilters = new ArrayList<>(table.getExtraFilters());
-        extraFilters.add(new KDBFilter(column, ((StringLiteral) pattern).getValue()));
-
-        return Optional.of(
-                new ConstraintApplicationResult<>(
-                        new KDBTableHandle(
-                                table.getNamespace(),
-                                table.getTableName(),
-                                table.getConstraint(),
-                                table.getLimit(),
-                                table.isPartitioned(),
-                                table.getPartitionColumn(),
-                                table.getPartitions(),
-                                extraFilters
-                        ),
-                        TupleDomain.all(),
-                        false
-                )
-        );
+        return Optional.empty();
     }
 
-    private Optional<LikePredicate> extractLikeExpression(Predicate<Map<ColumnHandle, NullableValue>> predicate) {
+    /**
+     * @return Object (LikePredicate in Trino runtime classloader)
+     */
+    private Optional<Object> extractLikeExpression(Predicate<Map<ColumnHandle, NullableValue>> predicate) {
         try {
             Field f = predicate.getClass().getDeclaredField("arg$1");
             f.setAccessible(true);
             Object arg = f.get(predicate);
-            if (arg instanceof LayoutConstraintEvaluator) {
-                Field f2 = LayoutConstraintEvaluator.class.getDeclaredField("evaluator");
+            if (arg != null && arg.getClass().getName().equals(LayoutConstraintEvaluator.class.getName())) {
+                Field f2 = arg.getClass().getDeclaredField("evaluator");
                 f2.setAccessible(true);
-                ExpressionInterpreter eval = (ExpressionInterpreter) f2.get(arg);
-                Field f3 = ExpressionInterpreter.class.getDeclaredField("expression");
+                Object eval = f2.get(arg);
+                Field f3 = eval.getClass().getDeclaredField("expression");
                 f3.setAccessible(true);
-                Expression expr = (Expression) f3.get(eval);
-                if (expr instanceof LikePredicate) {
-                    return Optional.of((LikePredicate) expr);
+                Object expr = f3.get(eval);
+                if (expr != null && expr.getClass().getName().equals(LikePredicate.class.getName())) {
+                    return Optional.of(expr);
                 }
             }
         } catch (Exception e) {
