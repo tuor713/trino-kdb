@@ -149,13 +149,13 @@ public class KDBClient {
                     "kdb.isPartitionColumn", isPartitioned && i == 0
             );
 
-            ColumnMetadata col = new ColumnMetadata(
-                    colNames[i],
-                    kdbType.getTrinoType(),
-                    null,
-                    null,
-                    false,
-                    props);
+            ColumnMetadata col = ColumnMetadata.builder()
+                    .setNullable(true)
+                    .setType(kdbType.getTrinoType())
+                    .setName(colNames[i])
+                    .setHidden(false)
+                    .setProperties(props)
+                    .build();
             result.add(col);
         }
 

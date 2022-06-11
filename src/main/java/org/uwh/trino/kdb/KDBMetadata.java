@@ -414,16 +414,16 @@ public class KDBMetadata implements ConnectorMetadata {
 
             projections.add(new Variable("col"+i, func.getOutputType()));
 
-            if (func.getInputs().size() == 0) {
+            if (func.getArguments().size() == 0) {
                 // count(*) use case
                 newQuery.append("i");
-            } else if (func.getInputs().size() == 1) {
-                ConnectorExpression expr = func.getInputs().get(0);
+            } else if (func.getArguments().size() == 1) {
+                ConnectorExpression expr = func.getArguments().get(0);
                 if (expr instanceof Variable) {
                     Variable var = (Variable) expr;
                     KDBColumnHandle colHandle = (KDBColumnHandle) assignments.get(var.getName());
                     if (colHandle == null) {
-                        Optional.empty();
+                        return Optional.empty();
                     }
                     newQuery.append(colHandle.getName());
                 } else {
