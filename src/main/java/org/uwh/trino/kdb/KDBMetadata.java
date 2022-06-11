@@ -10,6 +10,7 @@ import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.ptf.ConnectorTableFunctionHandle;
 import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.sql.planner.ExpressionInterpreter;
@@ -507,5 +508,17 @@ public class KDBMetadata implements ConnectorMetadata {
     @Override
     public Optional<ConnectorOutputMetadata> finishInsert(ConnectorSession session, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics) {
         return Optional.empty();
+    }
+
+    @Override
+    public Optional<TableFunctionApplicationResult<ConnectorTableHandle>> applyTableFunction(ConnectorSession session, ConnectorTableFunctionHandle handle) {
+        if (!(handle instanceof QueryFunction.QueryHandle)) {
+            return Optional.empty();
+        }
+
+        KDBTableHandle h = (KDBTableHandle) ((QueryFunction.QueryHandle) handle).getTableHandle();
+        List<ColumnHandle> columns = new ArrayList<>(getColumnHandles(session, h).values());
+
+        return Optional.of(new TableFunctionApplicationResult<>(h, columns));
     }
 }

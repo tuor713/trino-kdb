@@ -750,6 +750,16 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         assertTrue(lastQuery.contains("t <= "));
     }
 
+    @Test
+    public void testNativeQuery() {
+        query("select * from TABLE(system.query(query => 'select from atable'))", 3);
+    }
+
+    @Test
+    public void testNativeQueryCaseSensitive() {
+        query("select * from TABLE(system.query(query => 'select from CaseSensitiveTable'))", 4);
+    }
+
     private static String lastQuery = null;
     private MaterializedResult res;
     private static Logger LOGGER = Logger.getLogger(TestKDBPlugin.class.getName());

@@ -1,11 +1,13 @@
 package org.uwh.trino.kdb;
 
 import io.trino.spi.connector.*;
+import io.trino.spi.ptf.ConnectorTableFunction;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class KDBConnector implements Connector {
 
@@ -28,6 +30,11 @@ public class KDBConnector implements Connector {
     @Override
     public List<PropertyMetadata<?>> getSessionProperties() {
         return config.getSessionProperties();
+    }
+
+    @Override
+    public Set<ConnectorTableFunction> getTableFunctions() {
+        return Set.of(new QueryFunction(client));
     }
 
     @Override

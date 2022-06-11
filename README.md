@@ -16,7 +16,8 @@ kdb.port=8000
 The plugin currently supports:
 - All the KDB primitive types and nested arrays
 - Table and pass through queries
-  - Inside dynamic queries upper case letters must be escaped as \\\<letter> since Trino converts all "table names" to lower case
+  - *(New)* Support for polymorphic table function for native queries (similar to JDBC connectors) such as `select * from TABLE(system.query(query => 'select from CaseSensitiveTable'))`
+  - Inside traditional dynamic queries upper case letters must be escaped as \\\<letter> since Trino converts all "table names" to lower case
 - Basic schema introspection
 - Limited filter and limit pass through
   - Experimental support for `like '<pattern>'` push down (see `push.down.like` property). 
