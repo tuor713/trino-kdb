@@ -34,7 +34,7 @@ public class KDBConnector implements Connector {
 
     @Override
     public Set<ConnectorTableFunction> getTableFunctions() {
-        return Set.of(new QueryFunction(client));
+        return Set.of(new QueryFunction(client, metadata));
     }
 
     @Override

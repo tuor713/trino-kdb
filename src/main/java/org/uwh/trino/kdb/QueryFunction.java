@@ -21,8 +21,9 @@ import static java.util.Objects.requireNonNull;
 
 public class QueryFunction extends AbstractConnectorTableFunction {
     private final KDBClient client;
+    private final KDBMetadata metadata;
 
-    public QueryFunction(KDBClient client) {
+    public QueryFunction(KDBClient client, KDBMetadata metadata) {
         super("system",
                 "query",
                 List.of(ScalarArgumentSpecification.builder()
@@ -31,6 +32,7 @@ public class QueryFunction extends AbstractConnectorTableFunction {
                 .build()),
                 GENERIC_TABLE);
         this.client = client;
+        this.metadata = metadata;
     }
 
     @Override
@@ -41,7 +43,7 @@ public class QueryFunction extends AbstractConnectorTableFunction {
         KDBTableHandle handle = null;
         try {
             handle = client.getTableHandle("", query);
-            List<ColumnMetadata> columns = client.getTableMeta(handle);
+            List<ColumnMetadata> columns = metadata.getColumns(handle);
             Descriptor returnedType = new Descriptor(columns.stream()
                     .map(column -> new Descriptor.Field(column.getName(), Optional.of(column.getType())))
                     .collect(toImmutableList()));

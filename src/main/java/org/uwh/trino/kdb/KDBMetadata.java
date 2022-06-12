@@ -63,7 +63,7 @@ public class KDBMetadata implements ConnectorMetadata {
         }
     }
 
-    private List<ColumnMetadata> getColumns(KDBTableHandle handle) {
+    List<ColumnMetadata> getColumns(KDBTableHandle handle) {
         try {
             return columnMetadataCache.get(handle.getQualifiedTableName(), () -> {
                 return client.getTableMeta(handle);
