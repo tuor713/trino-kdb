@@ -55,6 +55,7 @@ public class TestKDBMetadata {
 
         // SchemaTableName always lower cases - no way to work around :(
         Set<String> expected = Set.of("atable", "btable", "ctable", "dtable", "keyed_table", "splay_table", "attribute_table", "partition_table", "casesensitivetable",
+                "ltable", "lsource",
                 "itable", "longitable", "caseitable", "ikeytable");
 
         assertEquals(tables.size(), expected.size());

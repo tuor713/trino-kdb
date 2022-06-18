@@ -38,6 +38,9 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         conn.k("attribute_table:([] unique_col: `u#`a`b`c; sorted_col: `s#1 2 3; parted_col: `p#1 1 2; grouped_col: `g#`a`b`c; plain_col: 1 2 3)");
         conn.k("CaseSensitiveTable:([] Symbol: `a`a`b`b; Number: 1 2 3 4; Square: 1 4 9 16)");
 
+        conn.k("ltable:([] id:`long$(); name: (); typ: `symbol$(); typ2: `symbol$(); rating: ())");
+        conn.k("lsource:([] id:`long$til 500000; name: string til 500000; typ: 500000?(`great`expectation`oliver`twist); typ2: 500000?(`great`expectation`oliver`twist); rating: 500000?(\"A+\"; \"A-\"; \"B+\"))");
+
         conn.k("itable:([] num:`long$(); sym: `symbol$())");
         conn.k("ikeytable:([sym: `symbol$()] num:`long$())");
         conn.k("longitable:([] " +
@@ -696,6 +699,13 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("insert into itable select num, sym from \"([] num: til 1000000; sym: 1000000#`ibm)\"");
         query("select count(*) from itable", 1);
         assertEquals(1000000L, res.getOnlyValue());
+    }
+
+    @Test
+    public void testLargeInsert2() {
+        query("insert into ltable select * from lsource");
+        query("select count(*) from ltable", 1);
+        assertEquals(500000L, res.getOnlyValue());
     }
 
     @Test
