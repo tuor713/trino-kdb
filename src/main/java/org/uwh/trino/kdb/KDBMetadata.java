@@ -8,6 +8,7 @@ import io.airlift.slice.Slice;
 import io.trino.spi.connector.*;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
+import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.ptf.ConnectorTableFunctionHandle;
@@ -239,21 +240,10 @@ public class KDBMetadata implements ConnectorMetadata {
             KDBType.Long, KDBType.Int, KDBType.Short, KDBType.Byte,
             KDBType.Boolean);
 
-    private boolean allFilterColumnsSupported(Constraint constraint) {
-        return constraint.getSummary().getDomains().orElseGet(() -> Map.of())
-                .keySet().stream()
-                .allMatch(col -> SUPPORTED_FILTER_TYPES.contains(((KDBColumnHandle) col).getKdbType()));
-    }
-
     @Override
     public Optional<ConstraintApplicationResult<ConnectorTableHandle>> applyFilter(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint) {
         KDBTableHandle khandle = (KDBTableHandle) handle;
         TupleDomain<ColumnHandle> current = khandle.getConstraint();
-
-        if (!allFilterColumnsSupported(constraint)) {
-            return Optional.empty();
-        }
-
         TupleDomain<ColumnHandle> next = current.intersect(constraint.getSummary());
 
         if (session.getProperty(Config.SESSION_PUSH_DOWN_LIKE, Boolean.class)
@@ -267,13 +257,27 @@ public class KDBMetadata implements ConnectorMetadata {
                     (KDBColumnHandle) constraint.getPredicateColumns().get().stream().findFirst().get());
         }
 
+        Map<ColumnHandle, Domain> supported = new HashMap<>();
+        Map<ColumnHandle, Domain> unsupported = new HashMap<>();
+        for (Map.Entry<ColumnHandle, Domain> e : next.getDomains().orElseThrow().entrySet()) {
+            KDBColumnHandle col = (KDBColumnHandle) e.getKey();
+            if (SUPPORTED_FILTER_TYPES.contains(col.getKdbType())) {
+                supported.put(col, e.getValue());
+            } else {
+                unsupported.put(col, e.getValue());
+            }
+        }
+
+        next = TupleDomain.withColumnDomains(supported);
+        TupleDomain<ColumnHandle> remaining = TupleDomain.withColumnDomains(unsupported);
+
         if (current.equals(next)) {
             return Optional.empty();
         }
 
         KDBTableHandle newHandle = new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions(), khandle.getExtraFilters());
 
-        return Optional.of(new ConstraintApplicationResult<>(newHandle, TupleDomain.all(), false));
+        return Optional.of(new ConstraintApplicationResult<>(newHandle, remaining, false));
     }
 
     private Optional<ConstraintApplicationResult<ConnectorTableHandle>> tryHandleLikePredicate(KDBTableHandle table, Predicate<Map<ColumnHandle, NullableValue>> predicate, KDBColumnHandle column) {

@@ -770,6 +770,12 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         query("select * from TABLE(system.query(query => 'select from CaseSensitiveTable'))", 4);
     }
 
+    @Test
+    public void testPartialPushdown() {
+        query("select * from \"([] sym: `a`a`c; ms: `minute$1 2 3)\" where sym = 'a' and ms = time '00:01'", 1);
+        assertTrue(lastQuery.contains(" sym = "));
+    }
+
     private static String lastQuery = null;
     private MaterializedResult res;
     private static Logger LOGGER = Logger.getLogger(TestKDBPlugin.class.getName());
