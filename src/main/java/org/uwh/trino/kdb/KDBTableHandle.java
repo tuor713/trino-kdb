@@ -301,10 +301,6 @@ public class KDBTableHandle implements ConnectorTableHandle {
         return String.join(", ", conditions.values());
     }
 
-    private static String constructLikeFilter(KDBColumnHandle column, String pattern) {
-        return column.getName() + " like \"" + pattern + "\"";
-    }
-
     @Override
     public String toString() {
         return "KDBTableHandle{" +

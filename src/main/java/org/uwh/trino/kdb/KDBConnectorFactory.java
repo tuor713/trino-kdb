@@ -17,8 +17,14 @@ public class KDBConnectorFactory implements ConnectorFactory {
         Config cfg = new Config(config);
 
         try {
-            KDBClient client = new KDBClient(cfg.getHost(), cfg.getPort(), cfg.getUser(), cfg.getPassword());
-            return new KDBConnector(client, cfg);
+            KDBClientFactory factory = new KDBClientFactory(
+                    cfg.getHost(),
+                    cfg.getPort(),
+                    cfg.getUser(),
+                    cfg.getPassword(),
+                    cfg.getExtraCredentialUser(),
+                    cfg.getExtraCredentialPassword());
+            return new KDBConnector(factory, cfg);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

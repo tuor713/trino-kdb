@@ -4,12 +4,17 @@ import io.trino.spi.session.PropertyMetadata;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class Config {
     public static final String KDB_HOST_KEY = "kdb.host";
     public static final String KDB_PORT_KEY = "kdb.port";
     public static final String KDB_USER_KEY = "kdb.user";
     public static final String KDB_PASSWORD_KEY = "kdb.password";
+
+    public static final String KDB_EXTRA_USER_KEY = "kdb.extra.credential.user";
+
+    public static final String KDB_EXTRA_PASSWORD_KEY = "kdb.extra.credential.password";
 
     public static final String KDB_PAGE_SIZE = "page.size";
     public static final String DEFAULT_PAGE_SIZE = "50000";
@@ -76,6 +81,14 @@ public class Config {
 
     public String getPassword() {
         return config.get(KDB_PASSWORD_KEY);
+    }
+
+    public Optional<String> getExtraCredentialUser() {
+        return Optional.ofNullable(config.get(KDB_EXTRA_USER_KEY));
+    }
+
+    public Optional<String> getExtraCredentialPassword() {
+        return Optional.ofNullable(config.get(KDB_EXTRA_PASSWORD_KEY));
     }
 
     public int getPageSize() {

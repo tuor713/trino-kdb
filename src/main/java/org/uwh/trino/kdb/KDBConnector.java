@@ -15,16 +15,16 @@ public class KDBConnector implements Connector {
         INSTANCE
     }
 
-    private final KDBClient client;
+    private final KDBClientFactory factory;
     private final Config config;
     private final StatsManager statsManager;
     private final KDBMetadata metadata;
 
-    public KDBConnector(KDBClient client, Config config) {
-        this.client = client;
+    public KDBConnector(KDBClientFactory factory, Config config) {
+        this.factory = factory;
         this.config = config;
-        this.statsManager = new StatsManager(client);
-        this.metadata = new KDBMetadata(client, config, statsManager);
+        this.statsManager = new StatsManager(factory);
+        this.metadata = new KDBMetadata(factory, config, statsManager);
     }
 
     @Override
@@ -34,7 +34,7 @@ public class KDBConnector implements Connector {
 
     @Override
     public Set<ConnectorTableFunction> getTableFunctions() {
-        return Set.of(new QueryFunction(client, metadata));
+        return Set.of(new QueryFunction(factory, metadata));
     }
 
     @Override
@@ -54,11 +54,11 @@ public class KDBConnector implements Connector {
 
     @Override
     public ConnectorPageSourceProvider getPageSourceProvider() {
-        return new KDBPageSourceProvider(client, config);
+        return new KDBPageSourceProvider(factory, config);
     }
 
     @Override
     public ConnectorPageSinkProvider getPageSinkProvider() {
-        return new KDBPageSinkProvider(client, config);
+        return new KDBPageSinkProvider(factory, config);
     }
 }

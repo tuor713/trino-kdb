@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Map;
 
 public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
-    private final KDBClient client;
+    private final KDBClientFactory factory;
     private final Config config;
 
-    public KDBPageSourceProvider(KDBClient client, Config config) {
-        this.client = client;
+    public KDBPageSourceProvider(KDBClientFactory factory, Config config) {
+        this.factory = factory;
         this.config = config;
     }
 
@@ -36,7 +36,7 @@ public class KDBPageSourceProvider implements ConnectorPageSourceProvider {
                     tHandle.getExtraFilters());
         }
 
-        return new KDBPageSource(client, tHandle, tColumns, session.getProperty(Config.SESSION_PAGE_SIZE, Integer.class), session.getProperty(Config.SESSION_VIRTUAL_TABLES, Boolean.class));
+        return new KDBPageSource(factory.getClient(session.getIdentity()), tHandle, tColumns, session.getProperty(Config.SESSION_PAGE_SIZE, Integer.class), session.getProperty(Config.SESSION_VIRTUAL_TABLES, Boolean.class));
     }
 
     private TupleDomain<ColumnHandle> getSplitColumnHandle(KDBColumnHandle partitionColumn, String partition) {

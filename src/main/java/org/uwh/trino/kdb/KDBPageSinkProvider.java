@@ -3,10 +3,10 @@ package org.uwh.trino.kdb;
 import io.trino.spi.connector.*;
 
 public class KDBPageSinkProvider implements ConnectorPageSinkProvider {
-    private final KDBClient client;
+    private final KDBClientFactory factory;
 
-    public KDBPageSinkProvider(KDBClient client, Config config) {
-        this.client = client;
+    public KDBPageSinkProvider(KDBClientFactory factory, Config config) {
+        this.factory = factory;
     }
 
     @Override
@@ -16,6 +16,6 @@ public class KDBPageSinkProvider implements ConnectorPageSinkProvider {
 
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle insertTableHandle) {
-        return new KDBPageSink(client, (KDBOutputTableHandle) insertTableHandle, session.getProperty(Config.SESSION_INSERT_FUNCTION, String.class));
+        return new KDBPageSink(factory.getClient(session.getIdentity()), (KDBOutputTableHandle) insertTableHandle, session.getProperty(Config.SESSION_INSERT_FUNCTION, String.class));
     }
 }

@@ -30,8 +30,8 @@ public class TestKDBMetadata {
         connection.k(".trino.touch:1");
         Config cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true", Config.KDB_DYNAMIC_STATS, "true"));
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
-        KDBClient client = new KDBClient("localhost", 8000, "user", "password");
-        sut = new KDBMetadata(client, cfg, new StatsManager(client));
+        KDBClientFactory factory = new KDBClientFactory("localhost", 8000, "user", "password", Optional.empty(), Optional.empty());
+        sut = new KDBMetadata(factory, cfg, new StatsManager(factory));
         // some time to allow metadata queries to finish
         Thread.sleep(50);
     }
@@ -131,21 +131,21 @@ public class TestKDBMetadata {
     public void testTableStats() throws Exception {
         Config cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "false"));
         ConnectorSession session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
-        KDBClient client = new KDBClient("localhost", 8000, "user", "password");
-        KDBMetadata metadata = new KDBMetadata(client, cfg, new StatsManager(client));
+        KDBClientFactory factory = new KDBClientFactory("localhost", 8000, "user", "password", Optional.empty(), Optional.empty());
+        KDBMetadata metadata = new KDBMetadata(factory, cfg, new StatsManager(factory));
         TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats, TableStatistics.empty());
 
         // stats = true, dynanic stats = false
         cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true"));
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
-        metadata = new KDBMetadata(client, cfg, new StatsManager(client));
+        metadata = new KDBMetadata(factory, cfg, new StatsManager(factory));
         stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats, TableStatistics.empty());
 
         cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true", Config.KDB_DYNAMIC_STATS, "true"));
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
-        metadata = new KDBMetadata(client, cfg, new StatsManager(client));
+        metadata = new KDBMetadata(factory, cfg, new StatsManager(factory));
         stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
         assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
     }

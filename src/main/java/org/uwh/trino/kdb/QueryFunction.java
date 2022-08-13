@@ -20,10 +20,10 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 
 public class QueryFunction extends AbstractConnectorTableFunction {
-    private final KDBClient client;
+    private final KDBClientFactory factory;
     private final KDBMetadata metadata;
 
-    public QueryFunction(KDBClient client, KDBMetadata metadata) {
+    public QueryFunction(KDBClientFactory factory, KDBMetadata metadata) {
         super("system",
                 "query",
                 List.of(ScalarArgumentSpecification.builder()
@@ -31,7 +31,7 @@ public class QueryFunction extends AbstractConnectorTableFunction {
                 .type(VARCHAR)
                 .build()),
                 GENERIC_TABLE);
-        this.client = client;
+        this.factory = factory;
         this.metadata = metadata;
     }
 
@@ -40,10 +40,11 @@ public class QueryFunction extends AbstractConnectorTableFunction {
         ScalarArgument argument = (ScalarArgument) getOnlyElement(arguments.values());
         String query = ((Slice) argument.getValue()).toStringUtf8();
 
+        KDBClient client = factory.getClient(session.getIdentity());
         KDBTableHandle handle = null;
         try {
             handle = client.getTableHandle("", query);
-            List<ColumnMetadata> columns = metadata.getColumns(handle);
+            List<ColumnMetadata> columns = metadata.getColumns(session, handle);
             Descriptor returnedType = new Descriptor(columns.stream()
                     .map(column -> new Descriptor.Field(column.getName(), Optional.of(column.getType())))
                     .collect(toImmutableList()));

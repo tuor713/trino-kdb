@@ -1,6 +1,7 @@
 package org.uwh.trino.kdb;
 
 import io.airlift.log.Logger;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.statistics.TableStatistics;
 
@@ -10,15 +11,16 @@ import java.util.Map;
 public class StatsManager {
     private static final Logger LOGGER = Logger.get(StatsManager.class);
 
-    private final KDBClient client;
+    private final KDBClientFactory factory;
     private final Map<SchemaTableName, TableStatistics> cachedStats = new HashMap<>();
 
-    public StatsManager(KDBClient client) {
-        this.client = client;
+    public StatsManager(KDBClientFactory factory) {
+        this.factory = factory;
     }
 
-    public TableStatistics getTableStats(KDBTableHandle table, boolean calcStatsOnTheFly) {
+    public TableStatistics getTableStats(KDBTableHandle table, ConnectorSession session, boolean calcStatsOnTheFly) {
         SchemaTableName fname = new SchemaTableName(KDBMetadata.resolveSchema(table.getNamespace()), table.getTableName());
+        KDBClient client = factory.getClient(session.getIdentity());
         if (!cachedStats.containsKey(fname)) {
             try {
                 cachedStats.put(fname, client.getTableStatistics(table, calcStatsOnTheFly));
