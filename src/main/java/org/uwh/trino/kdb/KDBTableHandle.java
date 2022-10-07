@@ -214,8 +214,7 @@ public class KDBTableHandle implements ConnectorTableHandle {
                                     formatKDBValue(KDBType.Symbol, range.getLowValue().get())
                             );
                         }
-                    }
-                    if (!range.isHighUnbounded()) {
+                    } else if (!range.isHighUnbounded()) {
                         if (column.getKdbType() != KDBType.String) {
                             conds.add(column.getName() + (range.isHighInclusive() ? " <= " : " < ") + formatKDBValue(column.getKdbType(), range.getHighValue().get()));
                         } else {
@@ -225,10 +224,19 @@ public class KDBTableHandle implements ConnectorTableHandle {
                                     formatKDBValue(KDBType.Symbol, range.getHighValue().get())
                             );
                         }
+                    } else if (!domain.isNullAllowed()) {
+                        // 'IS NOT NULL' predicate
+                        if (column.getKdbType() == KDBType.String) {
+                            // all strings are not null
+                            disjuncts.add("(count i)#1b");
+                        } else {
+                            disjuncts.add("not null " + column.getName());
+                        }
                     }
+
                     if (conds.size() > 1) {
                         disjuncts.add("(" + conds.get(0) + ") & (" + conds.get(1) + ")");
-                    } else {
+                    } else if (!conds.isEmpty()) {
                         disjuncts.add(conds.get(0));
                     }
                 }
@@ -243,6 +251,13 @@ public class KDBTableHandle implements ConnectorTableHandle {
             }
         } else if (singleValues.size() > 1) {
             disjuncts.add(column.getName() + " in (" + String.join("; ", singleValues.stream().map(s -> formatKDBValue(column.getKdbType(),s)).collect(Collectors.toList())) + ")");
+        } else if (domain.isOnlyNull()) {
+            if (column.getKdbType() == KDBType.String) {
+                // no way to represent null
+                disjuncts.add("(count i)#0b");
+            } else {
+                disjuncts.add("null " + column.getName());
+            }
         }
 
         if (disjuncts.size() == 1) {

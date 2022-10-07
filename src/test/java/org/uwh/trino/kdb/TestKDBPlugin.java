@@ -776,6 +776,28 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         assertTrue(lastQuery.contains(" sym = "));
     }
 
+    @Test
+    public void testIsNullQuery() {
+        query("select count(*) from \"([] name: ``a`b)\" where name is null", 1);
+        assertEquals(1, (long) res.getOnlyValue());
+        assertTrue(lastQuery.contains("where null name"));
+
+        query("select count(*) from \"([] name: ``a`b)\" where name is not null", 1);
+        assertEquals(2, (long) res.getOnlyValue());
+        assertTrue(lastQuery.contains("where not null name"));
+
+        query("select count(*) from atable where iq is null", 1);
+        assertEquals(0, (long) res.getOnlyValue());
+
+        // String handling
+
+        query("select count(*) from btable where strings is null",1);
+        assertEquals(0, (long) res.getOnlyValue());
+
+        query("select count(*) from btable where strings is not null",1);
+        assertEquals(3, (long) res.getOnlyValue());
+    }
+
     private static String lastQuery = null;
     private MaterializedResult res;
     private static Logger LOGGER = Logger.getLogger(TestKDBPlugin.class.getName());
