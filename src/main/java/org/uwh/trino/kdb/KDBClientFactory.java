@@ -58,7 +58,7 @@ public class KDBClientFactory {
         });
     }
 
-    private String hash(String value)
+    private synchronized String hash(String value)
     {
         return new String(sha256.digest(value.getBytes(UTF_8)));
     }
