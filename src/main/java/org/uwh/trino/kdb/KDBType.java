@@ -5,7 +5,7 @@ import io.airlift.slice.Slices;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.*;
-import kx.c;
+import com.kx.c;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -194,8 +194,10 @@ public enum KDBType {
     }),
     SymbolArray('S', new ArrayType(VarcharType.VARCHAR), (bb, values) -> { writeArray(KDBType.Symbol, bb, values); }, null),
     Timestamp('p', TimestampType.TIMESTAMP_MICROS, (bb, values) -> {
-        for (java.sql.Timestamp ts :(java.sql.Timestamp[]) values) {
-            if (c.NULL[12].equals(ts)) {
+        //for (java.sql.Timestamp ts :(java.sql.Timestamp[]) values) {
+        for (java.time.Instant inst :(java.time.Instant[]) values) {
+            java.sql.Timestamp ts = java.sql.Timestamp.from(inst);
+        if (c.NULL[12].equals(ts)) {
                 bb.appendNull();
             } else {
                 // Undo KDB timezone adjustment
@@ -230,29 +232,44 @@ public enum KDBType {
     }, null),
     MonthArray('M', new ArrayType(VarcharType.createVarcharType(10)), (bb, values) -> { writeArray(KDBType.Month, bb, values); }, null),
     Date('d', DateType.DATE, (bb, values) -> {
-        for (java.sql.Date d : (java.sql.Date[]) values) {
-            if (d.equals(c.NULL[14])) {
-                bb.appendNull();
-            } else {
-                DateType.DATE.writeLong(bb, LocalDate.of(d.getYear() + 1900, d.getMonth() + 1, d.getDate()).toEpochDay());
+        //for (java.sql.Date d : (java.sql.Date[]) values) {
+        //for (java.time.LocalDate ld : (java.time.LocalDate[]) values) {
+            //java.sql.Date d = java.sql.Date.valueOf(ld);
+        for (java.time.LocalDate d : (java.time.LocalDate[]) values) {
+                if (d.equals(c.NULL[14])) {
+                    bb.appendNull();
+                } else {
+                    //DateType.DATE.writeLong(bb, LocalDate.of(d.getYear() + 1900, d.getMonth() + 1, d.getDate()).toEpochDay());
+                    DateType.DATE.writeLong(bb, d.toEpochDay());
+                }
             }
-        }
     }, (block) -> {
-        java.sql.Date[] ar = new java.sql.Date[block.getPositionCount()];
+//        java.sql.Date[] ar = new java.sql.Date[block.getPositionCount()];
+//        for (int i=0; i< block.getPositionCount(); i++) {
+//            if (block.isNull(i)) {
+//                ar[i] = (java.sql.Date) c.NULL[14];
+//            } else {
+//                long epochDay = DateType.DATE.getLong(block, i);
+//                LocalDate date = LocalDate.ofEpochDay(epochDay);
+//                ar[i] = new java.sql.Date(date.getYear()-1900, date.getMonthValue()-1, date.getDayOfMonth());
+//            }
+//        }
+        java.time.LocalDate[] ar = new java.time.LocalDate[block.getPositionCount()];
         for (int i=0; i< block.getPositionCount(); i++) {
             if (block.isNull(i)) {
-                ar[i] = (java.sql.Date) c.NULL[14];
+                ar[i] = (java.time.LocalDate) c.NULL[14];
             } else {
                 long epochDay = DateType.DATE.getLong(block, i);
-                LocalDate date = LocalDate.ofEpochDay(epochDay);
-                ar[i] = new java.sql.Date(date.getYear()-1900, date.getMonthValue()-1, date.getDayOfMonth());
+                ar[i] = LocalDate.ofEpochDay(epochDay);
             }
         }
         return ar;
     }),
     DateArray('D', new ArrayType(DateType.DATE), (bb, values) -> { writeArray(KDBType.Date, bb, values); }, null),
     DateTime('z', TimestampType.TIMESTAMP_MILLIS, (bb, values) -> {
-        for (java.util.Date ts :(java.util.Date[]) values) {
+        //for (java.util.Date ts :(java.util.Date[]) values) {
+        for (java.time.LocalDateTime ldt :(java.time.LocalDateTime[]) values) {
+            java.util.Date ts = java.util.Date.from(ldt.atZone(java.time.ZoneId.systemDefault()).toInstant());
             if (c.NULL[15].equals(ts)) {
                 bb.appendNull();
             } else {
@@ -303,12 +320,17 @@ public enum KDBType {
     }, null),
     SecondArray('V', new ArrayType(TimeType.TIME_SECONDS), (bb, values) -> { writeArray(KDBType.Second, bb, values); }, null),
     Time('t', TimeType.TIME_MILLIS, (bb, values) -> {
-        for (java.sql.Time time : (java.sql.Time[]) values) {
+        //for (java.sql.Time time : (java.sql.Time[]) values) {
+        //for (java.time.LocalTime ltime : (java.time.LocalTime[]) values) {
+            //java.sql.Time time = java.sql.Time.valueOf(ltime);
+        for (java.time.LocalTime time : (java.time.LocalTime[]) values) {
             if (c.NULL[19].equals(time)) {
                 bb.appendNull();
             } else {
                 // undo KDB time zone adjustment
-                TimeType.TIME_MILLIS.writeLong(bb, lg(time.getTime()) * 1_000_000_000L);
+                //TimeType.TIME_MILLIS.writeLong(bb, lg(time.getTime()) * 1_000_000_000L);
+                //Time是没时区信息的
+                TimeType.TIME_MILLIS.writeLong(bb, time.toNanoOfDay() * 1_000L);
             }
         }
     }, null),

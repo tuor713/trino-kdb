@@ -14,7 +14,7 @@ import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
-import kx.c;
+import com.kx.c;
 
 import java.io.IOException;
 import java.util.*;
@@ -28,7 +28,7 @@ public class KDBClient {
     private final int port;
     private final String user;
     private final String password;
-    private kx.c connection = null;
+    private com.kx.c connection = null;
 
     public KDBClient(String host, int port, String user, String password) throws Exception {
         this.host = host;
