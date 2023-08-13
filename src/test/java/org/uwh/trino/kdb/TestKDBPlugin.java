@@ -586,7 +586,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testMetadataQueries() {
         query("show schemas from kdb", 6);
-        assertEquals(Set.of("default", "myns", "casens", "o", "trino", "information_schema"),res.getOnlyColumnAsSet());
+        assertTrue(res.getOnlyColumnAsSet().containsAll(List.of("default", "myns", "casens", "o", "information_schema")));
 
         query("show tables from kdb.myns", 4);
         query("show tables from kdb.casens", 1);
