@@ -6,12 +6,14 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.spi.connector.*;
+import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.expression.Constant;
 import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.ptf.ConnectorTableFunctionHandle;
+import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.sql.planner.LayoutConstraintEvaluator;
@@ -248,13 +250,47 @@ public class KDBMetadata implements ConnectorMetadata {
 
         if (session.getProperty(Config.SESSION_PUSH_DOWN_LIKE, Boolean.class)
                 && constraint.getSummary().isAll()
-                && constraint.predicate().isPresent()
-                && constraint.getPredicateColumns().isPresent()
-                && constraint.getPredicateColumns().get().size() == 1) {
-            return tryHandleLikePredicate(
-                    khandle,
-                    constraint.predicate().get(),
-                    (KDBColumnHandle) constraint.getPredicateColumns().get().stream().findFirst().get());
+                && constraint.getExpression() instanceof Call
+                && ((Call) constraint.getExpression()).getFunctionName().getName().equals("$like")) {
+
+            Call call = (Call) constraint.getExpression();
+            if (call.getArguments().size() != 2) {
+                return Optional.empty();
+            }
+
+            ConnectorExpression expr = call.getArguments().get(0);
+            if (!(expr instanceof Variable)) {
+                return Optional.empty();
+            }
+            String columnName = ((Variable) expr).getName();
+            KDBColumnHandle column = (KDBColumnHandle) constraint.getAssignments().get(columnName);
+
+            ConnectorExpression patternExpr = call.getArguments().get(1);
+            if (!(patternExpr instanceof Constant)) {
+                return Optional.empty();
+            }
+            String pattern = ((Slice) ((Constant) patternExpr).getValue()).toStringUtf8();
+
+            List<KDBFilter> extraFilters = new ArrayList<>(khandle.getExtraFilters());
+            extraFilters.add(new KDBFilter(column, pattern));
+
+            return Optional.of(
+                    new ConstraintApplicationResult<>(
+                            new KDBTableHandle(
+                                    khandle.getNamespace(),
+                                    khandle.getTableName(),
+                                    khandle.getConstraint(),
+                                    khandle.getLimit(),
+                                    khandle.isPartitioned(),
+                                    khandle.getPartitionColumn(),
+                                    khandle.getPartitions(),
+                                    extraFilters
+                            ),
+                            TupleDomain.all(),
+                            Constant.TRUE,
+                            false
+                    )
+            );
         }
 
         Map<ColumnHandle, Domain> supported = new HashMap<>();
@@ -278,62 +314,6 @@ public class KDBMetadata implements ConnectorMetadata {
         KDBTableHandle newHandle = new KDBTableHandle(khandle.getNamespace(), khandle.getTableName(), next, khandle.getLimit(), khandle.isPartitioned(), khandle.getPartitionColumn(), khandle.getPartitions(), khandle.getExtraFilters());
 
         return Optional.of(new ConstraintApplicationResult<>(newHandle, remaining, false));
-    }
-
-    private Optional<ConstraintApplicationResult<ConnectorTableHandle>> tryHandleLikePredicate(KDBTableHandle table, Predicate<Map<ColumnHandle, NullableValue>> predicate, KDBColumnHandle column) {
-        Optional<Object> expr = extractLikeExpression(predicate);
-        if (expr.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Object like = expr.get();
-        try {
-            Method mGetEscape = like.getClass().getDeclaredMethod("getEscape");
-            Method mGetValue = like.getClass().getDeclaredMethod("getValue");
-            Method mGetPattern = like.getClass().getDeclaredMethod("getPattern");
-
-            // Don't handle escape characters for now
-            if (((Optional<?>) mGetEscape.invoke(like)).isPresent()) {
-                return Optional.empty();
-            }
-
-            // only apply like push down to vanilla 'x like <pattern>' not functional expressions
-            // such as 'lower(x) like <pattern>'
-            Object value = mGetValue.invoke(like);
-            if (value == null || !value.getClass().getName().equals(SymbolReference.class.getName())) {
-                return Optional.empty();
-            }
-
-            Object pattern = mGetPattern.invoke(like);
-            if (!pattern.getClass().getName().equals(StringLiteral.class.getName())) {
-                return Optional.empty();
-            }
-
-            Method mStringLitGetValue = pattern.getClass().getDeclaredMethod("getValue");
-            List<KDBFilter> extraFilters = new ArrayList<>(table.getExtraFilters());
-            extraFilters.add(new KDBFilter(column, (String) mStringLitGetValue.invoke(pattern)));
-
-            return Optional.of(
-                    new ConstraintApplicationResult<>(
-                            new KDBTableHandle(
-                                    table.getNamespace(),
-                                    table.getTableName(),
-                                    table.getConstraint(),
-                                    table.getLimit(),
-                                    table.isPartitioned(),
-                                    table.getPartitionColumn(),
-                                    table.getPartitions(),
-                                    extraFilters
-                            ),
-                            TupleDomain.all(),
-                            false
-                    )
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return Optional.empty();
     }
 
     /**
@@ -478,7 +458,7 @@ public class KDBMetadata implements ConnectorMetadata {
     }
 
     @Override
-    public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint) {
+    public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle handle) {
         KDBTableHandle khandle = (KDBTableHandle) handle;
 
         if (!session.getProperty(Config.SESSION_USE_STATS, Boolean.class) || khandle.isQuery()) {

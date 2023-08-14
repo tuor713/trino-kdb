@@ -3,11 +3,8 @@ package org.uwh.trino.kdb;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.slice.Slice;
-import io.trino.spi.connector.ColumnMetadata;
-import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.ptf.*;
+import io.trino.spi.connector.*;
+import io.trino.spi.function.table.*;
 
 import java.util.List;
 import java.util.Map;
@@ -15,7 +12,7 @@ import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.spi.ptf.ReturnTypeSpecification.GenericTable.GENERIC_TABLE;
+import static io.trino.spi.function.table.ReturnTypeSpecification.GenericTable.GENERIC_TABLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 
@@ -36,7 +33,7 @@ public class QueryFunction extends AbstractConnectorTableFunction {
     }
 
     @Override
-    public TableFunctionAnalysis analyze(ConnectorSession session, ConnectorTransactionHandle transaction, Map<String, Argument> arguments) {
+    public TableFunctionAnalysis analyze(ConnectorSession session, ConnectorTransactionHandle transaction, Map<String, Argument> arguments, ConnectorAccessControl accessControl) {
         ScalarArgument argument = (ScalarArgument) getOnlyElement(arguments.values());
         String query = ((Slice) argument.getValue()).toStringUtf8();
 

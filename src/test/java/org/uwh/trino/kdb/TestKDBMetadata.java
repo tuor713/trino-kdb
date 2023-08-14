@@ -36,7 +36,7 @@ public class TestKDBMetadata {
         Thread.sleep(50);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         kx.c connection = new kx.c("localhost", 8000, "user:password");
         connection.k("delete stats from `.trino");
@@ -133,20 +133,20 @@ public class TestKDBMetadata {
         ConnectorSession session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
         KDBClientFactory factory = new KDBClientFactory("localhost", 8000, "user", "password", Optional.empty(), Optional.empty());
         KDBMetadata metadata = new KDBMetadata(factory, cfg, new StatsManager(factory));
-        TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        TableStatistics stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")));
         assertEquals(stats, TableStatistics.empty());
 
         // stats = true, dynanic stats = false
         cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true"));
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
         metadata = new KDBMetadata(factory, cfg, new StatsManager(factory));
-        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")));
         assertEquals(stats, TableStatistics.empty());
 
         cfg = new Config(Map.of(Config.KDB_USE_STATS_KEY, "true", Config.KDB_DYNAMIC_STATS, "true"));
         session = TestingConnectorSession.builder().setPropertyMetadata(cfg.getSessionProperties()).build();
         metadata = new KDBMetadata(factory, cfg, new StatsManager(factory));
-        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")), Constraint.alwaysTrue());
+        stats = metadata.getTableStatistics(session, metadata.getTableHandle(session, new SchemaTableName("default", "atable")));
         assertEquals(stats.getRowCount().getValue(), 3.0, 0.1);
     }
 
@@ -159,7 +159,7 @@ public class TestKDBMetadata {
         connection.k(".trino.colstats:([table:`atable`atable; column:`name`iq] distinct_count:10000 5000; null_fraction: 0.0 0.0; size: 40000 80000; min_value: 0n 50.0; max_value: 0n 300.0)");
 
         KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "atable"));
-        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+        TableStatistics stats = sut.getTableStatistics(session, handle);
 
         assertEquals(stats.getRowCount().getValue(), 10000.0, 0.1);
         Map<String, ColumnStatistics> colStats = stats.getColumnStatistics().entrySet().stream().collect(Collectors.toMap(e -> ((KDBColumnHandle) e.getKey()).getName(), e -> e.getValue()));
@@ -184,21 +184,21 @@ public class TestKDBMetadata {
         connection.k(".trino.stats:([table:`atable`btable] rowcount:10000 20000)");
 
         KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "ctable"));
-        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+        TableStatistics stats = sut.getTableStatistics(session, handle);
         assertEquals(stats.getRowCount().getValue(), 1000000.0, 0.1);
     }
 
     @Test
     public void testPartitionedTableStats() {
         KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "partition_table"));
-        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+        TableStatistics stats = sut.getTableStatistics(session, handle);
         assertEquals(stats.getRowCount().getValue(), 12.0, 0.1);
     }
 
     @Test
     public void testNoStatsForPassThroughQuery() {
         KDBTableHandle handle = (KDBTableHandle) sut.getTableHandle(session, new SchemaTableName("default", "([] a:1 2 3)"));
-        TableStatistics stats = sut.getTableStatistics(session, handle, Constraint.alwaysTrue());
+        TableStatistics stats = sut.getTableStatistics(session, handle);
         assertTrue(stats.getRowCount().isUnknown());
     }
 }

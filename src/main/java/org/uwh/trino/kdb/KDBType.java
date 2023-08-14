@@ -2,6 +2,7 @@ package org.uwh.trino.kdb;
 
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.*;
@@ -393,9 +394,9 @@ public enum KDBType {
 
     private static void writeArray(KDBType inner, BlockBuilder bb, Object values) {
         for (Object ls: (Object[]) values) {
-            BlockBuilder sub = bb.beginBlockEntry();
-            inner.writeBlock(sub, ls);
-            bb.closeEntry();
+            ((ArrayBlockBuilder) bb).buildEntry(builder -> {
+                inner.writeBlock(builder, ls);
+            });
         }
     }
 

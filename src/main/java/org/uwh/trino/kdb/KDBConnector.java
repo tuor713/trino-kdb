@@ -1,7 +1,7 @@
 package org.uwh.trino.kdb;
 
 import io.trino.spi.connector.*;
-import io.trino.spi.ptf.ConnectorTableFunction;
+import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 

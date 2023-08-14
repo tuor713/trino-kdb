@@ -214,7 +214,9 @@ public class KDBTableHandle implements ConnectorTableHandle {
                                     formatKDBValue(KDBType.Symbol, range.getLowValue().get())
                             );
                         }
-                    } else if (!range.isHighUnbounded()) {
+                    }
+
+                    if (!range.isHighUnbounded()) {
                         if (column.getKdbType() != KDBType.String) {
                             conds.add(column.getName() + (range.isHighInclusive() ? " <= " : " < ") + formatKDBValue(column.getKdbType(), range.getHighValue().get()));
                         } else {
@@ -224,18 +226,20 @@ public class KDBTableHandle implements ConnectorTableHandle {
                                     formatKDBValue(KDBType.Symbol, range.getHighValue().get())
                             );
                         }
-                    } else if (!domain.isNullAllowed()) {
+                    }
+
+                    if (!domain.isNullAllowed()) {
                         // 'IS NOT NULL' predicate
                         if (column.getKdbType() == KDBType.String) {
                             // all strings are not null
-                            disjuncts.add("(count i)#1b");
+                            conds.add("(count i)#1b");
                         } else {
-                            disjuncts.add("not null " + column.getName());
+                            conds.add("not null " + column.getName());
                         }
                     }
 
                     if (conds.size() > 1) {
-                        disjuncts.add("(" + conds.get(0) + ") & (" + conds.get(1) + ")");
+                        disjuncts.add(conds.stream().map(f -> "(" + f + ")").collect(Collectors.joining(" & ")));
                     } else if (!conds.isEmpty()) {
                         disjuncts.add(conds.get(0));
                     }

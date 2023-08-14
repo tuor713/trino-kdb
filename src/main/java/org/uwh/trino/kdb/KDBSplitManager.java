@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 public class KDBSplitManager implements ConnectorSplitManager {
     @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorTableHandle table, SplitSchedulingStrategy splitSchedulingStrategy, DynamicFilter dynamicFilter) {
+    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorTableHandle table, DynamicFilter dynamicFilter, Constraint constraint) {
         KDBTableHandle handle = (KDBTableHandle) table;
         if (handle.isPartitioned()) {
             return new FixedSplitSource(

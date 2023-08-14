@@ -10,12 +10,12 @@ public class KDBPageSinkProvider implements ConnectorPageSinkProvider {
     }
 
     @Override
-    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle outputTableHandle) {
+    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle outputTableHandle, ConnectorPageSinkId pageSinkId) {
         throw new UnsupportedOperationException("Table creation is not supported by KDB connector");
     }
 
     @Override
-    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle insertTableHandle) {
+    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle insertTableHandle, ConnectorPageSinkId pageSinkId) {
         return new KDBPageSink(factory.getClient(session.getIdentity()), (KDBOutputTableHandle) insertTableHandle, session.getProperty(Config.SESSION_INSERT_FUNCTION, String.class));
     }
 }

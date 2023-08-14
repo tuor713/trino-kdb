@@ -107,7 +107,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         });
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         kx.c conn = new kx.c("localhost", 8000, "user:password");
         conn.k("delete from `itable");
@@ -205,14 +205,14 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
     @Test
     public void testFilterPushdown() {
         query("select * from atable where iq > 50", 2);
-        assertLastQuery("select [50000] name, iq from atable where iq > 50");
+        assertLastQuery("select [50000] name, iq from atable where (iq > 50) & (not null iq)");
         assertResultColumn(0, Set.of("Dent", "Prefect"));
     }
 
     @Test
     public void testFilterPushdownMultiple() {
         query("select * from atable where iq > 50 and iq < 100", 1);
-        assertLastQuery("select [50000] name, iq from atable where (iq > 50) & (iq < 100)");
+        assertLastQuery("select [50000] name, iq from atable where (iq > 50) & (iq < 100) & (not null iq)");
         assertResultColumn(0, Set.of("Dent"));
     }
 
@@ -453,7 +453,7 @@ public class TestKDBPlugin extends AbstractTestQueryFramework {
         // test limit greater than matching rows
         query("select name from atable where iq < 100 limit 10", 2);
         assertResultColumn(0, Set.of("Dent", "Beeblebrox"));
-        assertLastQuery("select [10] name from atable where iq < 100");
+        assertLastQuery("select [10] name from atable where (iq < 100) & (not null iq)");
     }
 
     @Test
